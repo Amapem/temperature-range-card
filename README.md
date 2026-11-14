@@ -2,6 +2,10 @@
 
 A sleek, modern Lovelace card designed to visualize daily, weekly, and monthly temperature amplitudes from your Home Assistant sensors.
 
+<p align="center">
+  <img src="images/screenshot.jpg" alt="Temperature Range Card Preview" width="600">
+</p>
+
 ---
 
 ## Key Features
