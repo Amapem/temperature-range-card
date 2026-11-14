@@ -5,7 +5,11 @@
 
 A modern, iOS / Apple Weather styled temperature range card for Home Assistant. Displays daily, weekly, and monthly minimum and maximum temperature amplitude bars with real sensor historical data, continuous temperature scale alignment, customizable bar thickness, and a visual UI editor with drag-and-drop reordering.
 
-![Temperature Range Card Preview](images/preview.png)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Amapem/temperature-range-card/main/images/preview_7days.png" alt="Temperature Range Card - 7 Days View" width="650">
+  <br><br>
+  <img src="https://raw.githubusercontent.com/Amapem/temperature-range-card/main/images/preview_24months.png" alt="Temperature Range Card - 24 Months Seasonal Overview" width="650">
+</p>
 
 ---
 
