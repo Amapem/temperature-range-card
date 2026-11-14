@@ -1,21 +1,19 @@
 /**
  * Temperature Range Card (Style iOS Weather / Apple Weather)
- * v3.1.0 :
- * - Durées entièrement personnalisables et dynamiques (<nombre><unité>) :
- *   - 'd' (jours) : 2d, 7d, 10d, 14d, 15d, 20d, 30d, 60d...
- *   - 'w' (semaines) : 4w, 8w, 10w, 12w, 20w, 52w... (groupement par semaine ISO)
- *   - 'm' (mois) : 3m, 6m, 12m, 24m... (synthèse multi-mensuelle étendue)
- *   - Rétrocompatibilité totale avec 'week' (20w) et 'month' (12m)
- * - Éditeur visuel interactif complet (TemperatureRangeCardEditor) :
- *   - Gestion dynamique des durées autorisées (pills cliquables, presets rapides et saisie libre d'une durée personnalisée)
- *   - Gestion de la liste des capteurs : ajout, suppression, réorganisation monter/descendre, sélecteur d'entité et renommage personnalisé
- *   - Configuration de la durée par défaut et du capteur par défaut
- *   - Toggle pour afficher/masquer l'échelle des températures
- * - Échelle des températures graphique alignée au pixel près au-dessus des barres :
- *   - Bornes Min (0%) et Max (100%) de la plage globale de la barre grise
- *   - Valeurs et repères intermédiaires arrondis positionnés fidèlement à leur température
- *   - Lignes guides verticales discrètes dans chaque barre grise
- * - Points comparatifs à la même heure sur les 10 derniers jours
+ * v3.1.1 :
+ * - Tri chronologique automatique et manuel des durées (Jours -> Semaines -> Mois par ordre croissant) :
+ *   - 1. Jours croissants (ex: 2d, 7d, 10d, 14d, 15d, 20d, 30d, 60d)
+ *   - 2. Semaines croissantes (ex: 1w, 4w, 8w, 10w, 20w, 52w)
+ *   - 3. Mois croissants (ex: 3m, 6m, 12m, 24m)
+ * - Bouton "⇅ Trier" dans l'éditeur visuel et tri automatique lors de l'ajout
+ * - Tri automatique du menu déroulant dans la carte principale
+ * - Détection dynamique réelle de la limite d'historique pour le point "Même heure" :
+ *   - Utilise l'historique brut réel de la base sans limite arbitraire
+ *   - Affiche le point tant que la base dispose de données réelles (10-11 jours selon rétention recorder)
+ *   - S'estompe naturellement dès que les données brutes ont été purgées
+ * - Durées entièrement personnalisables et dynamiques (<nombre><unité>)
+ * - Éditeur visuel interactif complet (TemperatureRangeCardEditor)
+ * - Échelle des températures graphique alignée au pixel près avec guides verticaux
  * - Zéro dépendance : Vanilla Web Components natif ultra rapide
  */
 
@@ -57,6 +55,21 @@ function formatPeriodLabel(periodStr) {
   return periodStr;
 }
 
+function sortPeriods(periodList) {
+  if (!Array.isArray(periodList)) return [];
+  const unitOrder = { d: 1, w: 2, m: 3 };
+  return [...periodList].sort((a, b) => {
+    const pa = parsePeriod(a);
+    const pb = parsePeriod(b);
+    const orderA = unitOrder[pa.unit] || 99;
+    const orderB = unitOrder[pb.unit] || 99;
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    return pa.count - pb.count;
+  });
+}
+
 // =============================================================================
 // ÉDITEUR VISUEL (TemperatureRangeCardEditor)
 // =============================================================================
@@ -80,6 +93,8 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
     if (!Array.isArray(this._config.available_periods) || this._config.available_periods.length === 0) {
       this._config.available_periods = ["10d", "20d", "30d", "20w", "12m"];
+    } else {
+      this._config.available_periods = sortPeriods(this._config.available_periods);
     }
 
     if (Array.isArray(this._config.entities)) {
@@ -130,11 +145,11 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
     const entities = this._config.entities || [];
     const showScale = this._config.show_scale !== false;
-    const availablePeriods = this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"];
+    const availablePeriods = sortPeriods(this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"]);
     const defaultPeriod = this._config.default_period || availablePeriods[0] || "10d";
     const defaultEntity = this._config.default_entity || (entities[0] ? entities[0].entity : "");
 
-    const commonPresets = ["2d", "7d", "10d", "14d", "15d", "20d", "30d", "10w", "20w", "6m", "12m", "24m"];
+    const commonPresets = sortPeriods(["2d", "7d", "10d", "14d", "15d", "20d", "30d", "1w", "4w", "8w", "10w", "20w", "3m", "6m", "12m", "24m"]);
 
     const entitiesHtml = entities.map((item, index) => {
       const displayName = item.name || item.entity || `Capteur #${index + 1}`;
@@ -206,6 +221,30 @@ class TemperatureRangeCardEditor extends HTMLElement {
           font-size: 12px;
           font-weight: 500;
           color: var(--secondary-text-color, #9e9e9e);
+        }
+        .form-label-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 4px;
+        }
+        .btn-sort {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: var(--primary-text-color, #ffffff);
+          border-radius: 6px;
+          padding: 3px 8px;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.2s ease;
+        }
+        .btn-sort:hover {
+          background: var(--primary-color, #03a9f4);
+          border-color: var(--primary-color, #03a9f4);
         }
         .form-input, .form-select {
           width: 100%;
@@ -488,7 +527,10 @@ class TemperatureRangeCardEditor extends HTMLElement {
           </div>
 
           <div class="form-group" style="margin-top: 14px;">
-            <label class="form-label">Durées actives dans le menu de la carte (cliquez sur ✕ pour retirer)</label>
+            <div class="form-label-row">
+              <span class="form-label" style="font-weight:600; color:var(--primary-text-color);">Durées actives (Jours, Semaines, Mois)</span>
+              <button id="btn-sort-periods" class="btn-sort" title="Trier chronologiquement : jours, puis semaines, puis mois">⇅ Trier la liste</button>
+            </div>
             <div class="pills-group">
               ${availablePeriods.map((p, idx) => `
                 <div class="period-chip">
@@ -567,6 +609,16 @@ class TemperatureRangeCardEditor extends HTMLElement {
       });
     }
 
+    // Bouton Trier
+    const btnSort = this.shadowRoot.getElementById("btn-sort-periods");
+    if (btnSort) {
+      btnSort.addEventListener("click", () => {
+        this._config.available_periods = sortPeriods(this._config.available_periods || []);
+        this._fireConfigChanged();
+        this._render();
+      });
+    }
+
     // Retirer une durée (chip)
     const removeBtns = this.shadowRoot.querySelectorAll('[data-action="remove-period"]');
     removeBtns.forEach(btn => {
@@ -575,14 +627,14 @@ class TemperatureRangeCardEditor extends HTMLElement {
         let current = [...(this._config.available_periods || [])];
         if (current.length > 1) {
           current.splice(idx, 1);
-          this._config.available_periods = current;
+          this._config.available_periods = sortPeriods(current);
           this._fireConfigChanged();
           this._render();
         }
       });
     });
 
-    // Ajouter un preset
+    // Ajouter un preset (trié automatiquement)
     const presetBadges = this.shadowRoot.querySelectorAll('[data-action="add-preset"]');
     presetBadges.forEach(badge => {
       badge.addEventListener("click", () => {
@@ -590,14 +642,14 @@ class TemperatureRangeCardEditor extends HTMLElement {
         let current = [...(this._config.available_periods || [])];
         if (!current.includes(pVal)) {
           current.push(pVal);
-          this._config.available_periods = current;
+          this._config.available_periods = sortPeriods(current);
           this._fireConfigChanged();
           this._render();
         }
       });
     });
 
-    // Ajouter une durée libre personnalisée
+    // Ajouter une durée libre personnalisée (triée automatiquement)
     const customInput = this.shadowRoot.getElementById("custom-period-input");
     const btnAddPeriod = this.shadowRoot.getElementById("btn-add-period");
     const handleAddCustom = () => {
@@ -609,7 +661,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
         let current = [...(this._config.available_periods || [])];
         if (!current.some(x => parsePeriod(x).raw === parsed.raw)) {
           current.push(parsed.raw);
-          this._config.available_periods = current;
+          this._config.available_periods = sortPeriods(current);
           this._fireConfigChanged();
           this._render();
         }
@@ -769,12 +821,13 @@ class TemperatureRangeCard extends HTMLElement {
     const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
       : ["10d", "20d", "30d", "20w", "12m"];
+    const sortedAllowed = sortPeriods(rawAllowed);
 
     const savedPeriod = localStorage.getItem("temp_range_selected_period");
-    let chosenPeriod = savedPeriod || this.config.default_period || rawAllowed[0];
-    const isChosenValid = rawAllowed.some(p => parsePeriod(p).raw === parsePeriod(chosenPeriod).raw);
+    let chosenPeriod = savedPeriod || this.config.default_period || sortedAllowed[0];
+    const isChosenValid = sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(chosenPeriod).raw);
     if (!isChosenValid) {
-      chosenPeriod = rawAllowed[0] || "10d";
+      chosenPeriod = sortedAllowed[0] || "10d";
     }
     this._selectedPeriod = chosenPeriod;
 
@@ -816,10 +869,11 @@ class TemperatureRangeCard extends HTMLElement {
 
       if (unit === "d") {
         const statsStart = new Date(now - (count + 1) * 24 * 3600 * 1000).toISOString();
-        const histDays = Math.min(count, 10);
+        // Récupérer l'historique brut jusqu'à 31 jours (le recorder fournira ce qu'il conserve réellement)
+        const histDays = Math.min(count, 31);
         const histStart = new Date(now - (histDays + 1) * 24 * 3600 * 1000).toISOString();
 
-        // 1. Fetch detailed history for same-time points (last 10 days max)
+        // 1. Fetch detailed history for same-time points
         const histPromise = this._hass.callWS({
           type: "history/history_during_period",
           start_time: histStart,
@@ -905,7 +959,10 @@ class TemperatureRangeCard extends HTMLElement {
       ? this.config.available_periods
       : ["10d", "20d", "30d", "20w", "12m"];
 
-    const allowedPeriods = rawAllowed.map(p => ({
+    // Tri logique garanti : Jours croissants, Semaines croissantes, Mois croissants
+    const sortedAllowed = sortPeriods(rawAllowed);
+
+    const allowedPeriods = sortedAllowed.map(p => ({
       id: p,
       label: formatPeriodLabel(p),
       normalized: parsePeriod(p).raw
@@ -927,16 +984,12 @@ class TemperatureRangeCard extends HTMLElement {
 
     if (unit === "d") {
       const daysCount = count;
-      subtitleHtml = daysCount <= 10
-        ? `<span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
-           <span class="legend-item"><span class="legend-dot past"></span> Même heure (${nowTimeStr}) les jours passés</span>`
-        : `<span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
-           <span class="legend-item"><span class="legend-dot past"></span> Même heure (10 derniers jours)</span>
-           <span class="legend-item" style="opacity:0.8;">Barres Min-Max sur ${daysCount} jours</span>`;
 
       // 1. Calculer les min/max exacts depuis l'historique direct (_history) pour les jours récents
       const histDaysMap = new Map();
+      let earliestHistTs = Infinity;
       if (this._history && this._history.length) {
+        earliestHistTs = this._history[0].lu;
         for (const pt of this._history) {
           const val = parseFloat(pt.s);
           if (isNaN(val)) continue;
@@ -952,10 +1005,14 @@ class TemperatureRangeCard extends HTMLElement {
         }
       }
 
+      // Nombre de jours réels disposant d'un point historique à la même heure
+      let pointsAvailableCount = 0;
+
       // 2. Initialiser les N jours
       for (let i = 0; i < daysCount; i++) {
         const targetDate = new Date(now.getTime() - i * 24 * 3600 * 1000);
         const dateStr = targetDate.toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit" });
+        const targetTs = Math.floor(targetDate.getTime() / 1000);
         
         let label = "";
         if (i === 0) label = "Auj.";
@@ -969,9 +1026,9 @@ class TemperatureRangeCard extends HTMLElement {
         const isToday = i === 0;
         const currentVal = (isToday && cur && !isNaN(parseFloat(cur.state))) ? parseFloat(cur.state) : null;
 
-        let sameTimeVal = currentVal;
-        if (!isToday && i < 10 && this._history && this._history.length) {
-          const targetTs = Math.floor(targetDate.getTime() / 1000);
+        // Détection dynamique réelle : le point n'est cherché que si targetTs est dans la plage de l'historique brut conservé
+        let sameTimeVal = isToday ? currentVal : null;
+        if (!isToday && this._history && this._history.length && targetTs >= earliestHistTs) {
           for (const pt of this._history) {
             if (pt.lu <= targetTs) {
               const v = parseFloat(pt.s);
@@ -980,8 +1037,10 @@ class TemperatureRangeCard extends HTMLElement {
               break;
             }
           }
-        } else if (i >= 10) {
-          sameTimeVal = null;
+        }
+
+        if (sameTimeVal !== null) {
+          pointsAvailableCount++;
         }
 
         let dayMin = null;
@@ -1009,6 +1068,20 @@ class TemperatureRangeCard extends HTMLElement {
           isToday: isToday,
           hasDirectHist: hasDirectHist
         });
+      }
+
+      // Sous-titre dynamique selon la présence réelle des points
+      if (daysCount <= 10 || pointsAvailableCount >= daysCount) {
+        subtitleHtml = `
+          <span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
+          <span class="legend-item"><span class="legend-dot past"></span> Même heure (${nowTimeStr}) les jours passés</span>
+        `;
+      } else {
+        subtitleHtml = `
+          <span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
+          <span class="legend-item"><span class="legend-dot past"></span> Même heure (sur les ${pointsAvailableCount} jours récents)</span>
+          <span class="legend-item" style="opacity:0.8;">Barres Min-Max sur ${daysCount} jours</span>
+        `;
       }
 
       // 3. Compléter avec les statistiques pour les jours antérieurs
