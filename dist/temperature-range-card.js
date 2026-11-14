@@ -1,6 +1,29 @@
 /**
  * Temperature Range Card (Style iOS Weather / Apple Weather)
- * v3.1.1 :
+ * v4.0.0 (Global Release) :
+ * - Internationalisation native complète (i18n) dans 6 langues :
+ *   - English (en), Français (fr), Deutsch (de), Español (es), Italiano (it), Nederlands (nl)
+ *   - Détection automatique de la langue utilisateur via Home Assistant (hass.locale.language)
+ *   - Formatage des dates dynamique multilingue (toLocaleDateString avec la locale active)
+ * - Typographie et espacements adaptatifs selon l\'épaisseur des barres (gain jusqu\'à 45% en hauteur)
+ * - En-têtes de colonnes clairs et explicites MIN et MAX au-dessus des températures
+ * - Dégradé Continu Global (Style Apple Weather) avec alignement vertical parfait
+ * - Épaisseur des barres 100% personnalisable et libre (bar_height)
+ * - Éditeur visuel Lovelace ultra-compact (hauteur réduite de plus de 50%)
+ * - Liste des capteurs repliable (28px) avec réorganisation native par Glisser-Déposer (Drag & Drop)
+ * - Création de carte vierge sans capteur résiduel polluant et filtrage strict des températures
+ * - Tri chronologique automatique et manuel des durées (Jours -> Semaines -> Mois)
+ * - Détection dynamique réelle de la rétention recorder pour les points comparatifs
+ * - Zéro dépendance : Vanilla Web Components natif ultra rapide
+ * - Dégradé Continu Global (Style Apple Weather) avec alignement vertical parfait :
+ *   - Mode 'global' (défaut) : une température donnée a toujours la même couleur sur toutes les lignes et sous l\'échelle
+ *   - Mode 'local' (optionnel) : chaque barre déroule toute la palette de son min à son max
+ *   - Sélecteur direct dans l\'éditeur visuel
+ * - Épaisseur des barres 100% personnalisable et libre (bar_height) :
+ *   - Valeur libre en pixels (ex: 6 à 60 px, défaut 18px)
+ *   - 6 Presets rapides dans l\'éditeur : 10px Fine, 14px Standard, 18px Défaut, 24px Épaisse, 28px Très épaisse, 34px Extra large
+ *   - Dimensionnement adaptatif et proportionnel des repères et puces temporelles
+ * - v3.1.1 :
  * - Tri chronologique automatique et manuel des durées (Jours -> Semaines -> Mois par ordre croissant) :
  *   - 1. Jours croissants (ex: 2d, 7d, 10d, 14d, 15d, 20d, 30d, 60d)
  *   - 2. Semaines croissantes (ex: 1w, 4w, 8w, 10w, 20w, 52w)
@@ -41,19 +64,394 @@ function parsePeriod(periodStr) {
   return { count: 10, unit: "d", raw: "10d" };
 }
 
-function formatPeriodLabel(periodStr) {
-  const { count, unit } = parsePeriod(periodStr);
-  if (unit === "d") {
-    return `📅 ${count} jour${count > 1 ? "s" : ""}`;
+// =============================================================================
+// INTERNATIONALISATION (i18n) - 6 LANGUES : EN, FR, DE, ES, IT, NL
+// =============================================================================
+
+const TRANSLATIONS = {
+  en: {
+    card_title_default: "Temperature Overview",
+    subtitle_days: "History and comparison for the last {count} days",
+    subtitle_weeks: "Weekly summary for the last {count} weeks",
+    subtitle_months: "Monthly summary for the last {count} months (Seasonal trends)",
+    scale: "Scale",
+    today: "Today",
+    yesterday: "Yesterday",
+    current_temp: "Current temp",
+    same_time: "Same time past days",
+    loading: "Loading historical data...",
+    no_sensors_title: "No sensor configured",
+    no_sensors_desc: "Click <strong>Edit</strong> to add your temperature sensors.",
+    period_d_single: "1 day",
+    period_d_plural: "{count} days",
+    period_w_single: "1 week",
+    period_w_plural: "{count} weeks",
+    period_m_single: "1 month",
+    period_m_plural: "{count} months",
+    general_settings: "⚙️ General Settings",
+    card_title_label: "Card title",
+    card_title_placeholder: "Ex: Temperature Overview",
+    default_sensor: "Default sensor",
+    default_period: "Default period",
+    no_sensor_option: "(No sensor)",
+    bar_style_section: "📊 Bar Style & Display",
+    show_scale_label: "Display graduated scale above bars (Min, Ticks, Max)",
+    gradient_style_label: "Bar gradient style",
+    gradient_global: "🍏 Continuous global scale (Apple Weather style - vertical alignment)",
+    gradient_local: "🌈 Relative amplitude per bar (Each bar 0% to 100%)",
+    bar_thickness_label: "Bar thickness",
+    thickness_fine: "fine",
+    thickness_standard: "standard",
+    thickness_default: "default",
+    thickness_thick: "thick",
+    thickness_max: "max",
+    thickness_xxl: "xxl",
+    active_periods_section: "⏱️ Active periods ({count})",
+    sort: "⇅ Sort",
+    quick_suggestions: "Quick suggestions",
+    all_added: "All added.",
+    add_custom_placeholder: "Custom duration: 15d, 8w, 6m...",
+    add_button: "+ Add",
+    sensors_section: "🌡️ Temperature Sensors ({count})",
+    expand_all: "Expand all",
+    collapse_all: "Collapse all",
+    no_sensors_configured: "No sensors configured. Click below to add your first sensor.",
+    add_sensor: "+ Add a sensor",
+    move_up: "Move up",
+    move_down: "Move down",
+    delete_sensor: "Delete this sensor",
+    expand: "Expand",
+    collapse: "Collapse",
+    drag_handle_title: "Drag to reorder",
+    ha_entity: "Home Assistant Entity (Sensor)",
+    custom_name: "Custom display name",
+    custom_name_placeholder: "Ex: 🌳 Outdoor, 🛋️ Living room..."
+  },
+  fr: {
+    card_title_default: "Comparatif & Amplitudes Thermiques",
+    subtitle_days: "Historique et comparatif sur les {count} derniers jours",
+    subtitle_weeks: "Synthèse hebdomadaire des {count} dernières semaines",
+    subtitle_months: "Synthèse mensuelle des {count} derniers mois (Évolution des saisons)",
+    scale: "Échelle",
+    today: "Auj.",
+    yesterday: "Hier",
+    current_temp: "T° actuelle",
+    same_time: "Même heure les jours passés",
+    loading: "Chargement des données historiques...",
+    no_sensors_title: "Aucun capteur configuré",
+    no_sensors_desc: "Cliquez sur <strong>Modifier</strong> pour ajouter vos capteurs.",
+    period_d_single: "1 jour",
+    period_d_plural: "{count} jours",
+    period_w_single: "1 semaine",
+    period_w_plural: "{count} semaines",
+    period_m_single: "1 mois",
+    period_m_plural: "{count} mois",
+    general_settings: "⚙️ Paramètres Généraux",
+    card_title_label: "Titre de la carte",
+    card_title_placeholder: "Ex: Comparatif & Amplitudes Thermiques",
+    default_sensor: "Capteur par défaut",
+    default_period: "Période par défaut",
+    no_sensor_option: "(Aucun capteur)",
+    bar_style_section: "📊 Style & Affichage des Barres",
+    show_scale_label: "Afficher l'échelle graduée au-dessus des barres (Min, Repères, Max)",
+    gradient_style_label: "Style de dégradé des barres",
+    gradient_global: "🍏 Échelle continue globale (Style Apple Weather - alignement vertical)",
+    gradient_local: "🌈 Amplitude relative par barre (Chaque barre de 0% à 100%)",
+    bar_thickness_label: "Épaisseur des barres",
+    thickness_fine: "fine",
+    thickness_standard: "standard",
+    thickness_default: "défaut",
+    thickness_thick: "épaisse",
+    thickness_max: "max",
+    thickness_xxl: "xxl",
+    active_periods_section: "⏱️ Durées actives ({count})",
+    sort: "⇅ Trier",
+    quick_suggestions: "Suggestions rapides",
+    all_added: "Toutes ajoutées.",
+    add_custom_placeholder: "Durée libre : 15d, 8w, 6m...",
+    add_button: "+ Ajouter",
+    sensors_section: "🌡️ Capteurs Thermiques ({count})",
+    expand_all: "Déplier tout",
+    collapse_all: "Replier tout",
+    no_sensors_configured: "Aucun capteur configuré. Cliquez ci-dessous pour ajouter votre premier capteur.",
+    add_sensor: "+ Ajouter un capteur",
+    move_up: "Monter",
+    move_down: "Descendre",
+    delete_sensor: "Supprimer ce capteur",
+    expand: "Déplier",
+    collapse: "Replier",
+    drag_handle_title: "Glisser pour changer l'ordre",
+    ha_entity: "Entité Home Assistant (Capteur)",
+    custom_name: "Nom d'affichage personnalisé",
+    custom_name_placeholder: "Ex: 🌳 T° Extérieure, 🛋️ Salon..."
+  },
+  de: {
+    card_title_default: "Temperaturübersicht & Amplituden",
+    subtitle_days: "Verlauf und Vergleich der letzten {count} Tage",
+    subtitle_weeks: "Wochenübersicht der letzten {count} Wochen",
+    subtitle_months: "Monatsübersicht der letzten {count} Monate (Jahreszeiten)",
+    scale: "Skala",
+    today: "Heute",
+    yesterday: "Gestern",
+    current_temp: "Aktuelle Temp.",
+    same_time: "Gleiche Zeit vergangene Tage",
+    loading: "Historische Daten laden...",
+    no_sensors_title: "Kein Sensor konfiguriert",
+    no_sensors_desc: "Klicken Sie auf <strong>Bearbeiten</strong>, um Sensoren hinzuzufügen.",
+    period_d_single: "1 Tag",
+    period_d_plural: "{count} Tage",
+    period_w_single: "1 Woche",
+    period_w_plural: "{count} Wochen",
+    period_m_single: "1 Monat",
+    period_m_plural: "{count} Monate",
+    general_settings: "⚙️ Allgemeine Einstellungen",
+    card_title_label: "Kartentitel",
+    card_title_placeholder: "Z.B.: Temperaturübersicht",
+    default_sensor: "Standard-Sensor",
+    default_period: "Standard-Zeitraum",
+    no_sensor_option: "(Kein Sensor)",
+    bar_style_section: "📊 Balkenstil & Anzeige",
+    show_scale_label: "Graduierte Skala über den Balken anzeigen (Min, Markierungen, Max)",
+    gradient_style_label: "Balken-Farbverlauf",
+    gradient_global: "🍏 Durchgehende globale Skala (Apple Weather Stil - vertikale Ausrichtung)",
+    gradient_local: "🌈 Relativer Verlauf pro Balken (Jeder Balken von 0% bis 100%)",
+    bar_thickness_label: "Balkendicke",
+    thickness_fine: "fein",
+    thickness_standard: "standard",
+    thickness_default: "standard",
+    thickness_thick: "dick",
+    thickness_max: "max",
+    thickness_xxl: "xxl",
+    active_periods_section: "⏱️ Aktive Zeiträume ({count})",
+    sort: "⇅ Sortieren",
+    quick_suggestions: "Schnellvorschläge",
+    all_added: "Alle hinzugefügt.",
+    add_custom_placeholder: "Eigener Zeitraum: 15d, 8w, 6m...",
+    add_button: "+ Hinzufügen",
+    sensors_section: "🌡️ Temperatursensoren ({count})",
+    expand_all: "Alle ausklappen",
+    collapse_all: "Alle einklappen",
+    no_sensors_configured: "Keine Sensoren konfiguriert. Unten klicken, um den ersten Sensor hinzuzufügen.",
+    add_sensor: "+ Sensor hinzufügen",
+    move_up: "Nach oben",
+    move_down: "Nach unten",
+    delete_sensor: "Diesen Sensor löschen",
+    expand: "Ausklappen",
+    collapse: "Einklappen",
+    drag_handle_title: "Ziehen zum Neuanordnen",
+    ha_entity: "Home Assistant Entität (Sensor)",
+    custom_name: "Benutzerdefinierter Anzeigename",
+    custom_name_placeholder: "Z.B.: 🌳 Außen, 🛋️ Wohnzimmer..."
+  },
+  es: {
+    card_title_default: "Resumen y Amplitudes Térmicas",
+    subtitle_days: "Historial y comparación de los últimos {count} días",
+    subtitle_weeks: "Resumen semanal de las últimas {count} semanas",
+    subtitle_months: "Resumen mensual de los últimos {count} meses (Evolución estacional)",
+    scale: "Escala",
+    today: "Hoy",
+    yesterday: "Ayer",
+    current_temp: "T° actual",
+    same_time: "Misma hora días anteriores",
+    loading: "Cargando datos históricos...",
+    no_sensors_title: "Sin sensores configurados",
+    no_sensors_desc: "Haga clic en <strong>Editar</strong> para añadir sensores.",
+    period_d_single: "1 día",
+    period_d_plural: "{count} días",
+    period_w_single: "1 semana",
+    period_w_plural: "{count} semanas",
+    period_m_single: "1 mes",
+    period_m_plural: "{count} meses",
+    general_settings: "⚙️ Configuración General",
+    card_title_label: "Título de la tarjeta",
+    card_title_placeholder: "Ej: Resumen Térmico",
+    default_sensor: "Sensor predeterminado",
+    default_period: "Período predeterminado",
+    no_sensor_option: "(Sin sensor)",
+    bar_style_section: "📊 Estilo y Visualización de Barras",
+    show_scale_label: "Mostrar escala graduada sobre las barras (Mín, Marcas, Máx)",
+    gradient_style_label: "Estilo de gradiente",
+    gradient_global: "🍏 Escala continua global (Estilo Apple Weather - alineación vertical)",
+    gradient_local: "🌈 Amplitud relativa por barra (Cada barra de 0% a 100%)",
+    bar_thickness_label: "Grosor de las barras",
+    thickness_fine: "fina",
+    thickness_standard: "estándar",
+    thickness_default: "predeterminado",
+    thickness_thick: "gruesa",
+    thickness_max: "máx",
+    thickness_xxl: "xxl",
+    active_periods_section: "⏱️ Períodos activos ({count})",
+    sort: "⇅ Ordenar",
+    quick_suggestions: "Sugerencias rápidas",
+    all_added: "Todas añadidas.",
+    add_custom_placeholder: "Duración personalizada: 15d, 8w, 6m...",
+    add_button: "+ Añadir",
+    sensors_section: "🌡️ Sensores de Temperatura ({count})",
+    expand_all: "Desplegar todo",
+    collapse_all: "Plegar todo",
+    no_sensors_configured: "No hay sensores configurados. Haga clic abajo para añadir su primer sensor.",
+    add_sensor: "+ Añadir un sensor",
+    move_up: "Subir",
+    move_down: "Bajar",
+    delete_sensor: "Eliminar este sensor",
+    expand: "Desplegar",
+    collapse: "Plegar",
+    drag_handle_title: "Arrastrar para reordenar",
+    ha_entity: "Entidad de Home Assistant (Sensor)",
+    custom_name: "Nombre de visualización personalizado",
+    custom_name_placeholder: "Ej: 🌳 Exterior, 🛋️ Salón..."
+  },
+  it: {
+    card_title_default: "Panoramica e Amplitudini Termiche",
+    subtitle_days: "Cronologia e confronto degli ultimi {count} giorni",
+    subtitle_weeks: "Riepilogo settimanale delle ultime {count} settimane",
+    subtitle_months: "Riepilogo mensile degli ultimi {count} mesi (Stagionalità)",
+    scale: "Scala",
+    today: "Oggi",
+    yesterday: "Ieri",
+    current_temp: "T° attuale",
+    same_time: "Stessa ora giorni passati",
+    loading: "Caricamento dati storici...",
+    no_sensors_title: "Nessun sensore configurato",
+    no_sensors_desc: "Clicca su <strong>Modifica</strong> per aggiungere sensori.",
+    period_d_single: "1 giorno",
+    period_d_plural: "{count} giorni",
+    period_w_single: "1 settimana",
+    period_w_plural: "{count} settimane",
+    period_m_single: "1 mese",
+    period_m_plural: "{count} mesi",
+    general_settings: "⚙️ Impostazioni Generali",
+    card_title_label: "Titolo della scheda",
+    card_title_placeholder: "Es: Panoramica Termica",
+    default_sensor: "Sensore predefinito",
+    default_period: "Periodo predefinito",
+    no_sensor_option: "(Nessun sensore)",
+    bar_style_section: "📊 Stile e Visualizzazione Barre",
+    show_scale_label: "Mostra scala graduata sopra le barre (Min, Tacche, Max)",
+    gradient_style_label: "Stile sfumatura barre",
+    gradient_global: "🍏 Scala continua globale (Stile Apple Weather - allineamento verticale)",
+    gradient_local: "🌈 Ampiezza relativa per barra (Ogni barra da 0% a 100%)",
+    bar_thickness_label: "Spessore delle barre",
+    thickness_fine: "fine",
+    thickness_standard: "standard",
+    thickness_default: "predefinito",
+    thickness_thick: "spesso",
+    thickness_max: "max",
+    thickness_xxl: "xxl",
+    active_periods_section: "⏱️ Periodi attivi ({count})",
+    sort: "⇅ Ordina",
+    quick_suggestions: "Suggerimenti rapidi",
+    all_added: "Tutti aggiunti.",
+    add_custom_placeholder: "Durata libera: 15d, 8w, 6m...",
+    add_button: "+ Aggiungi",
+    sensors_section: "🌡️ Sensori di Temperatura ({count})",
+    expand_all: "Espandi tutto",
+    collapse_all: "Comprimi tutto",
+    no_sensors_configured: "Nessun sensore configurato. Clicca sotto per aggiungere il primo sensore.",
+    add_sensor: "+ Aggiungi sensore",
+    move_up: "Sposta su",
+    move_down: "Sposta giù",
+    delete_sensor: "Elimina questo sensore",
+    expand: "Espandi",
+    collapse: "Comprimi",
+    drag_handle_title: "Trascina per riordinare",
+    ha_entity: "Entità Home Assistant (Sensore)",
+    custom_name: "Nome di visualizzazione personalizzato",
+    custom_name_placeholder: "Es: 🌳 Esterno, 🛋️ Soggiorno..."
+  },
+  nl: {
+    card_title_default: "Temperatuuroverzicht & Amplitudes",
+    subtitle_days: "Geschiedenis en vergelijking voor de afgelopen {count} dagen",
+    subtitle_weeks: "Wekelijks overzicht voor de afgelopen {count} weken",
+    subtitle_months: "Maandelijks overzicht voor de afgelopen {count} maanden (Seizoenen)",
+    scale: "Schaal",
+    today: "Vandaag",
+    yesterday: "Gisteren",
+    current_temp: "Huidige temp.",
+    same_time: "Zelfde tijd afgelopen dagen",
+    loading: "Historische gegevens laden...",
+    no_sensors_title: "Geen sensor geconfigureerd",
+    no_sensors_desc: "Klik op <strong>Bewerken</strong> om sensoren toe te voegen.",
+    period_d_single: "1 dag",
+    period_d_plural: "{count} dagen",
+    period_w_single: "1 week",
+    period_w_plural: "{count} weken",
+    period_m_single: "1 maand",
+    period_m_plural: "{count} maanden",
+    general_settings: "⚙️ Algemene Instellingen",
+    card_title_label: "Kaarttitel",
+    card_title_placeholder: "Bijv.: Temperatuuroverzicht",
+    default_sensor: "Standaard sensor",
+    default_period: "Standaard periode",
+    no_sensor_option: "(Geen sensor)",
+    bar_style_section: "📊 Balkstijl & Weergave",
+    show_scale_label: "Schaalverdeling boven balken weergeven (Min, Markeringen, Max)",
+    gradient_style_label: "Balkverloopstijl",
+    gradient_global: "🍏 Doorlopende globale schaal (Apple Weather stijl - verticale uitlijning)",
+    gradient_local: "🌈 Relatief verloop per balk (Elke balk van 0% tot 100%)",
+    bar_thickness_label: "Balkdikte",
+    thickness_fine: "dun",
+    thickness_standard: "standaard",
+    thickness_default: "standaard",
+    thickness_thick: "dik",
+    thickness_max: "max",
+    thickness_xxl: "xxl",
+    active_periods_section: "⏱️ Actieve perioden ({count})",
+    sort: "⇅ Sorteren",
+    quick_suggestions: "Snelle suggesties",
+    all_added: "Alle toegevoegd.",
+    add_custom_placeholder: "Aangepaste duur: 15d, 8w, 6m...",
+    add_button: "+ Toevoegen",
+    sensors_section: "🌡️ Temperatuursensoren ({count})",
+    expand_all: "Alles uitklappen",
+    collapse_all: "Alles inklappen",
+    no_sensors_configured: "Geen sensoren geconfigureerd. Klik hieronder om je eerste sensor toe te voegen.",
+    add_sensor: "+ Sensor toevoegen",
+    move_up: "Omhoog",
+    move_down: "Omlaag",
+    delete_sensor: "Verwijder deze sensor",
+    expand: "Uitklappen",
+    collapse: "Inklappen",
+    drag_handle_title: "Slepen om volgorde te wijzigen",
+    ha_entity: "Home Assistant Entiteit (Sensor)",
+    custom_name: "Aangepaste weergavenaam",
+    custom_name_placeholder: "Bijv.: 🌳 Buiten, 🛋️ Woonkamer..."
   }
-  if (unit === "w") {
-    return `🗓️ ${count} semaine${count > 1 ? "s" : ""}`;
+};
+
+function localize(key, hass, placeholders = {}) {
+  const rawLang = (hass && (hass.locale?.language || hass.language)) || "en";
+  const lang = rawLang.toLowerCase().split("-")[0];
+  const dict = TRANSLATIONS[lang] || TRANSLATIONS["en"];
+  let text = dict[key] || TRANSLATIONS["en"][key] || key;
+  for (const [k, v] of Object.entries(placeholders)) {
+    text = text.replace(new RegExp(`\\{${k}\\}`, "g"), v);
   }
-  if (unit === "m") {
-    return `🗓️ ${count} mois`;
+  return text;
+}
+
+function getUserLocale(hass) {
+  return (hass && (hass.locale?.language || hass.language)) || "en-US";
+}
+
+function formatPeriodLabel(periodStr, hass) {
+  const p = parsePeriod(periodStr);
+  if (!p) return periodStr;
+  const count = p.count;
+  const icon = p.unit === "d" ? "📅 " : "🗓️ ";
+  if (p.unit === "d") {
+    const lbl = count === 1 ? localize("period_d_single", hass, { count }) : localize("period_d_plural", hass, { count });
+    return `${icon}${lbl}`;
+  } else if (p.unit === "w") {
+    const lbl = count === 1 ? localize("period_w_single", hass, { count }) : localize("period_w_plural", hass, { count });
+    return `${icon}${lbl}`;
+  } else if (p.unit === "m") {
+    const lbl = count === 1 ? localize("period_m_single", hass, { count }) : localize("period_m_plural", hass, { count });
+    return `${icon}${lbl}`;
   }
   return periodStr;
 }
+
 
 function sortPeriods(periodList) {
   if (!Array.isArray(periodList)) return [];
@@ -80,6 +478,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = null;
     this._hass = null;
+    this._expandedSet = new Set();
   }
 
   setConfig(config) {
@@ -87,6 +486,8 @@ class TemperatureRangeCardEditor extends HTMLElement {
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
+      gradient_mode: "global",
+      bar_height: 18,
       available_periods: ["10d", "20d", "30d", "20w", "12m"],
       entities: []
     }, structuredClone(config));
@@ -145,6 +546,8 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
     const entities = this._config.entities || [];
     const showScale = this._config.show_scale !== false;
+    const gradientMode = (this._config.gradient_mode === "local") ? "local" : "global";
+    const barHeight = Math.max(6, Math.min(60, parseInt(this._config.bar_height, 10) || 18));
     const availablePeriods = sortPeriods(this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"]);
     const defaultPeriod = this._config.default_period || availablePeriods[0] || "10d";
     const defaultEntity = this._config.default_entity || (entities[0] ? entities[0].entity : "");
@@ -152,28 +555,37 @@ class TemperatureRangeCardEditor extends HTMLElement {
     const commonPresets = sortPeriods(["2d", "7d", "10d", "14d", "15d", "20d", "30d", "1w", "4w", "8w", "10w", "20w", "3m", "6m", "12m", "24m"]);
 
     const entitiesHtml = entities.map((item, index) => {
+      const isExpanded = this._expandedSet && this._expandedSet.has(index);
       const displayName = item.name || item.entity || `Capteur #${index + 1}`;
       return `
-        <div class="entity-card" data-index="${index}">
-          <div class="entity-card-header">
+        <div class="entity-card ${isExpanded ? "expanded" : "collapsed"}" data-index="${index}" draggable="true">
+          <div class="entity-card-header" data-action="toggle-expand" data-index="${index}">
             <div class="entity-card-title">
-              <span class="entity-num">#${index + 1}</span>
+              <span class="entity-icon">🌡️</span>
               <span class="entity-title-text" title="${displayName}">${displayName}</span>
             </div>
-            <div class="entity-actions">
+            <div class="entity-actions" onclick="event.stopPropagation()">
               <button class="btn-icon" data-action="up" data-index="${index}" title="Monter" ${index === 0 ? "disabled" : ""}>▲</button>
               <button class="btn-icon" data-action="down" data-index="${index}" title="Descendre" ${index === entities.length - 1 ? "disabled" : ""}>▼</button>
               <button class="btn-icon btn-delete" data-action="delete" data-index="${index}" title="Supprimer">✕</button>
+              <button class="btn-icon btn-chevron" data-action="toggle-expand" data-index="${index}" title="${isExpanded ? "Replier" : "Déplier"}">
+                <span class="chevron-arrow ${isExpanded ? "open" : ""}">▼</span>
+              </button>
+              <span class="drag-handle" title="${localize("drag_handle_title", this._hass)}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M4,9H20V7H4V9M4,13H20V11H4V13M4,17H20V15H4V17Z" />
+                </svg>
+              </span>
             </div>
           </div>
-          <div class="entity-card-body">
+          <div class="entity-card-body" style="${isExpanded ? "" : "display: none;"}">
             <div class="form-group">
-              <label class="form-label">Entité Home Assistant (Capteur)</label>
+              <label class="form-label">${localize("ha_entity", this._hass)}</label>
               <div class="picker-slot" data-index="${index}"></div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Nom d'affichage personnalisé</label>
-              <input type="text" class="form-input entity-name-input" data-index="${index}" value="${item.name || ""}" placeholder="Ex: 🌳 T° Extérieure, 🛋️ Salon...">
+            <div class="form-group" style="margin-top: 6px;">
+              <label class="form-label">${localize("custom_name", this._hass)}</label>
+              <input type="text" class="form-input entity-name-input" data-index="${index}" value="${item.name || ""}" placeholder="${localize("custom_name_placeholder", this._hass)}">
             </div>
           </div>
         </div>
@@ -190,20 +602,20 @@ class TemperatureRangeCardEditor extends HTMLElement {
         .editor-container {
           display: flex;
           flex-direction: column;
-          gap: 20px;
-          padding: 8px 0;
+          gap: 10px;
+          padding: 2px 0;
         }
         .section-box {
           background: var(--ha-card-background, rgba(255, 255, 255, 0.03));
           border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.12));
-          border-radius: 12px;
-          padding: 16px;
+          border-radius: 8px;
+          padding: 10px 12px;
         }
         .section-title {
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 600;
           color: var(--primary-text-color, #ffffff);
-          margin-bottom: 14px;
+          margin-bottom: 8px;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -211,14 +623,24 @@ class TemperatureRangeCardEditor extends HTMLElement {
         .form-group {
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          margin-bottom: 14px;
+          gap: 3px;
+          margin-bottom: 8px;
         }
         .form-group:last-child {
           margin-bottom: 0;
         }
+        .form-grid-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+        @media (max-width: 480px) {
+          .form-grid-2 {
+            grid-template-columns: 1fr;
+          }
+        }
         .form-label {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 500;
           color: var(--secondary-text-color, #9e9e9e);
         }
@@ -226,14 +648,14 @@ class TemperatureRangeCardEditor extends HTMLElement {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
         .btn-sort {
           background: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.2);
           color: var(--primary-text-color, #ffffff);
-          border-radius: 6px;
-          padding: 3px 8px;
+          border-radius: 5px;
+          padding: 2px 7px;
           font-size: 11px;
           font-weight: 600;
           cursor: pointer;
@@ -251,9 +673,9 @@ class TemperatureRangeCardEditor extends HTMLElement {
           background: rgba(255, 255, 255, 0.06);
           color: var(--primary-text-color, #ffffff);
           border: 1px solid rgba(255, 255, 255, 0.18);
-          border-radius: 8px;
-          padding: 9px 12px;
-          font-size: 14px;
+          border-radius: 6px;
+          padding: 5px 8px;
+          font-size: 13px;
           font-family: inherit;
           box-sizing: border-box;
           outline: none;
@@ -270,29 +692,29 @@ class TemperatureRangeCardEditor extends HTMLElement {
         .pills-group {
           display: flex;
           flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 4px;
+          gap: 5px;
+          margin-top: 3px;
         }
         .period-chip {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-size: 13px;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 12px;
+          font-size: 11px;
           font-weight: 600;
           background: var(--primary-color, #03a9f4);
           color: #ffffff;
           border: 1px solid var(--primary-color, #03a9f4);
-          box-shadow: 0 2px 6px rgba(3, 169, 244, 0.3);
+          box-shadow: 0 1px 4px rgba(3, 169, 244, 0.25);
         }
         .chip-remove {
           cursor: pointer;
-          font-size: 11px;
+          font-size: 10px;
           background: rgba(0, 0, 0, 0.25);
           border-radius: 50%;
-          width: 16px;
-          height: 16px;
+          width: 14px;
+          height: 14px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -302,36 +724,44 @@ class TemperatureRangeCardEditor extends HTMLElement {
           background: rgba(0, 0, 0, 0.5);
         }
         .preset-badge {
-          padding: 5px 10px;
-          border-radius: 16px;
-          font-size: 12px;
+          padding: 2px 7px;
+          border-radius: 10px;
+          font-size: 11px;
           font-weight: 500;
           cursor: pointer;
           background: rgba(255, 255, 255, 0.05);
           color: var(--secondary-text-color, #9e9e9e);
           border: 1px dashed rgba(255, 255, 255, 0.2);
           transition: all 0.2s ease;
+          user-select: none;
         }
         .preset-badge:hover {
           background: rgba(255, 255, 255, 0.12);
           color: var(--primary-text-color, #ffffff);
           border-color: var(--primary-color, #03a9f4);
         }
+        .preset-badge.active {
+          background: var(--primary-color, #03a9f4) !important;
+          color: #ffffff !important;
+          border-color: var(--primary-color, #03a9f4) !important;
+          font-weight: 600;
+        }
         .add-period-row {
           display: flex;
-          gap: 8px;
-          margin-top: 8px;
+          gap: 6px;
+          margin-top: 4px;
         }
         .btn-add-period {
           background: rgba(3, 169, 244, 0.15);
           border: 1px solid var(--primary-color, #03a9f4);
           color: var(--primary-color, #03a9f4);
-          border-radius: 8px;
-          padding: 0 16px;
-          font-size: 13px;
+          border-radius: 6px;
+          padding: 0 10px;
+          font-size: 12px;
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
+          height: 28px;
           transition: all 0.2s ease;
         }
         .btn-add-period:hover {
@@ -341,106 +771,123 @@ class TemperatureRangeCardEditor extends HTMLElement {
         .switch-container {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 8px;
           cursor: pointer;
           user-select: none;
-          font-size: 14px;
+          font-size: 12px;
           color: var(--primary-text-color);
-          margin-top: 6px;
+          margin-top: 2px;
         }
         .switch-container input {
           display: none;
         }
         .switch-slider {
           position: relative;
-          width: 42px;
-          height: 22px;
+          width: 34px;
+          height: 18px;
           background-color: rgba(255, 255, 255, 0.2);
-          border-radius: 22px;
-          transition: 0.25s ease;
+          border-radius: 18px;
+          transition: background-color 0.2s ease;
           flex-shrink: 0;
         }
-        .switch-slider::before {
-          position: absolute;
+        .switch-slider:before {
           content: "";
-          height: 16px;
-          width: 16px;
-          left: 3px;
-          bottom: 3px;
+          position: absolute;
+          width: 14px;
+          height: 14px;
+          left: 2px;
+          bottom: 2px;
           background-color: white;
           border-radius: 50%;
-          transition: 0.25s ease;
+          transition: transform 0.2s ease;
         }
         .switch-container input:checked + .switch-slider {
           background-color: var(--primary-color, #03a9f4);
         }
-        .switch-container input:checked + .switch-slider::before {
-          transform: translateX(20px);
+        .switch-container input:checked + .switch-slider:before {
+          transform: translateX(16px);
         }
         .entities-list {
           display: flex;
           flex-direction: column;
-          gap: 10px;
-          margin-bottom: 14px;
+          gap: 3px;
+          margin-bottom: 6px;
         }
         .entity-card {
-          background: rgba(255, 255, 255, 0.04);
+          background: var(--card-background-color, rgba(255, 255, 255, 0.04));
           border: 1px solid var(--divider-color, rgba(255, 255, 255, 0.1));
-          border-radius: 10px;
+          border-radius: 5px;
           overflow: hidden;
-          transition: border-color 0.2s ease;
+          transition: all 0.15s ease;
+          margin-bottom: 0;
         }
         .entity-card:hover {
           border-color: rgba(255, 255, 255, 0.25);
+        }
+        .entity-card.expanded {
+          border-color: var(--primary-color, #03a9f4);
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+          margin-bottom: 3px;
         }
         .entity-card-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(255, 255, 255, 0.04);
-          padding: 8px 12px;
+          background: rgba(255, 255, 255, 0.03);
+          padding: 3px 8px;
+          min-height: 28px;
+          cursor: pointer;
+          user-select: none;
+          transition: background 0.15s ease;
+        }
+        .entity-card.expanded .entity-card-header {
           border-bottom: 1px solid var(--divider-color, rgba(255, 255, 255, 0.08));
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .entity-card-header:hover {
+          background: rgba(255, 255, 255, 0.07);
         }
         .entity-card-title {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 13px;
-          font-weight: 600;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 500;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          flex: 1;
+          margin-right: 4px;
         }
-        .entity-num {
-          font-size: 11px;
-          background: rgba(255, 255, 255, 0.12);
-          padding: 2px 6px;
-          border-radius: 4px;
-          color: var(--secondary-text-color, #9e9e9e);
+        .entity-icon {
+          font-size: 13px;
+          line-height: 1;
+          flex-shrink: 0;
         }
         .entity-title-text {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
-          max-width: 240px;
         }
         .entity-actions {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 2px;
+          flex-shrink: 0;
         }
         .btn-icon {
-          background: transparent;
+          background: rgba(255, 255, 255, 0.06);
           border: 1px solid rgba(255, 255, 255, 0.15);
           color: var(--primary-text-color, #ffffff);
-          border-radius: 6px;
-          width: 28px;
-          height: 28px;
+          border-radius: 3px;
+          width: 20px;
+          height: 20px;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          font-size: 11px;
+          font-size: 9px;
+          padding: 0;
           transition: all 0.2s ease;
         }
         .btn-icon:hover:not(:disabled) {
@@ -448,7 +895,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
           border-color: rgba(255, 255, 255, 0.35);
         }
         .btn-icon:disabled {
-          opacity: 0.3;
+          opacity: 0.25;
           cursor: default;
         }
         .btn-delete:hover:not(:disabled) {
@@ -456,25 +903,64 @@ class TemperatureRangeCardEditor extends HTMLElement {
           border-color: #f44336;
           color: #f44336;
         }
+        .btn-chevron {
+          padding: 0 2px;
+        }
+        .chevron-arrow {
+          display: inline-block;
+          font-size: 8px;
+          transition: transform 0.2s ease;
+        }
+        .chevron-arrow.open {
+          transform: rotate(180deg);
+        }
+        .drag-handle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: grab;
+          padding: 1px 3px;
+          color: var(--secondary-text-color, #9e9e9e);
+          border-radius: 3px;
+          transition: all 0.15s ease;
+          user-select: none;
+        }
+        .drag-handle:hover {
+          color: var(--primary-text-color, #ffffff);
+          background: rgba(255, 255, 255, 0.1);
+        }
+        .drag-handle:active {
+          cursor: grabbing;
+        }
+        .entity-card.dragging {
+          opacity: 0.45;
+          border: 1px dashed var(--primary-color, #03a9f4);
+        }
+        .entity-card.drag-over {
+          border-color: var(--primary-color, #03a9f4);
+          background: rgba(3, 169, 244, 0.12);
+          box-shadow: 0 0 8px rgba(3, 169, 244, 0.3);
+        }
         .entity-card-body {
-          padding: 12px;
+          padding: 6px 8px;
         }
         .btn-add-sensor {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
+          gap: 6px;
           width: 100%;
           background: rgba(3, 169, 244, 0.08);
           border: 1px dashed var(--primary-color, #03a9f4);
           color: var(--primary-color, #03a9f4);
-          border-radius: 8px;
-          padding: 12px;
-          font-size: 14px;
+          border-radius: 6px;
+          padding: 7px;
+          font-size: 12px;
           font-weight: 600;
           cursor: pointer;
           font-family: inherit;
           transition: all 0.2s ease;
+          margin-top: 4px;
         }
         .btn-add-sensor:hover {
           background: rgba(3, 169, 244, 0.18);
@@ -484,93 +970,127 @@ class TemperatureRangeCardEditor extends HTMLElement {
       <div class="editor-container">
         <!-- Configuration Générale -->
         <div class="section-box">
-          <div class="section-title">⚙️ Paramètres Généraux</div>
+          <div class="section-title">${localize("general_settings", this._hass)}</div>
           
           <div class="form-group">
-            <label class="form-label">Titre de la carte</label>
-            <input type="text" id="title-input" class="form-input" value="${this._config.title || ""}" placeholder="Ex: Comparatif & Amplitudes Thermiques">
+            <label class="form-label">${localize("card_title_label", this._hass)}</label>
+            <input type="text" id="title-input" class="form-input" value="${this._config.title || ""}" placeholder="${localize("card_title_placeholder", this._hass)}">
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Capteur affiché par défaut</label>
-            <select id="default-entity-select" class="form-select">
-              ${entities.map(e => `
-                <option value="${e.entity}" ${e.entity === defaultEntity ? "selected" : ""}>
-                  ${e.name || e.entity}
-                </option>
-              `).join("")}
-            </select>
-          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label">${localize("default_sensor", this._hass)}</label>
+              <select id="default-entity-select" class="form-select">
+                ${entities.length === 0 ? '<option value="">${localize("no_sensor_option", this._hass)}</option>' : ''}
+                ${entities.map(e => `
+                  <option value="${e.entity}" ${e.entity === defaultEntity ? "selected" : ""}>
+                    ${e.name || e.entity}
+                  </option>
+                `).join("")}
+              </select>
+            </div>
 
-          <div class="form-group">
-            <label class="form-label">Période d'affichage par défaut</label>
-            <select id="default-period-select" class="form-select">
-              ${availablePeriods.map(p => `
-                <option value="${p}" ${p === defaultPeriod ? "selected" : ""}>
-                  ${formatPeriodLabel(p)} (${p})
-                </option>
-              `).join("")}
-            </select>
+            <div class="form-group">
+              <label class="form-label">${localize("default_period", this._hass)}</label>
+              <select id="default-period-select" class="form-select">
+                ${availablePeriods.map(p => `
+                  <option value="${p}" ${p === defaultPeriod ? "selected" : ""}>
+                    ${formatPeriodLabel(p, this._hass)} (${p})
+                  </option>
+                `).join("")}
+              </select>
+            </div>
           </div>
         </div>
 
-        <!-- Options d'Affichage & Durées Dynamiques -->
+        <!-- Options d'Affichage & Style des Barres -->
         <div class="section-box">
-          <div class="section-title">📊 Options d'Affichage & Durées Disponibles</div>
+          <div class="section-title">${localize("bar_style_section", this._hass)}</div>
 
           <div class="form-group">
             <label class="switch-container">
               <input type="checkbox" id="scale-toggle" ${showScale ? "checked" : ""}>
               <span class="switch-slider"></span>
-              <span>Afficher l'échelle des températures sur les barres (Min, Repères, Max)</span>
+              <span>${localize("show_scale_label", this._hass)}</span>
             </label>
           </div>
 
-          <div class="form-group" style="margin-top: 14px;">
-            <div class="form-label-row">
-              <span class="form-label" style="font-weight:600; color:var(--primary-text-color);">Durées actives (Jours, Semaines, Mois)</span>
-              <button id="btn-sort-periods" class="btn-sort" title="Trier chronologiquement : jours, puis semaines, puis mois">⇅ Trier la liste</button>
-            </div>
-            <div class="pills-group">
-              ${availablePeriods.map((p, idx) => `
-                <div class="period-chip">
-                  <span>${formatPeriodLabel(p)}</span>
-                  <span class="chip-remove" data-action="remove-period" data-index="${idx}" title="Retirer cette durée">✕</span>
-                </div>
-              `).join("")}
-            </div>
+          <div class="form-group" style="margin-top: 6px;">
+            <label class="form-label">${localize("gradient_style_label", this._hass)}</label>
+            <select id="gradient-mode-select" class="form-select">
+              <option value="global" ${gradientMode === "global" ? "selected" : ""}>${localize("gradient_global", this._hass)}</option>
+              <option value="local" ${gradientMode === "local" ? "selected" : ""}>${localize("gradient_local", this._hass)}</option>
+            </select>
           </div>
 
-          <div class="form-group" style="margin-top: 10px;">
-            <label class="form-label">Suggestions rapides à ajouter</label>
+          <div class="form-group" style="margin-top: 6px;">
+            <div class="form-label-row">
+              <span class="form-label">Épaisseur des barres : <strong>${barHeight} px</strong></span>
+              <div style="display:flex; align-items:center; gap:4px;">
+                <input type="number" id="bar-height-input" class="form-input" style="width:60px; height:24px; padding:1px 5px; text-align:center; font-size:12px;" min="6" max="60" step="1" value="${barHeight}">
+                <span style="font-size:11px; color:var(--secondary-text-color);">px</span>
+              </div>
+            </div>
+            <div class="pills-group" style="gap:4px;">
+              <span class="preset-badge ${barHeight === 10 ? 'active' : ''}" data-action="set-height" data-val="10">10 ${localize("thickness_fine", this._hass)}</span>
+              <span class="preset-badge ${barHeight === 14 ? 'active' : ''}" data-action="set-height" data-val="14">14 ${localize("thickness_standard", this._hass)}</span>
+              <span class="preset-badge ${barHeight === 18 ? 'active' : ''}" data-action="set-height" data-val="18">18 ${localize("thickness_default", this._hass)}</span>
+              <span class="preset-badge ${barHeight === 24 ? 'active' : ''}" data-action="set-height" data-val="24">24 ${localize("thickness_thick", this._hass)}</span>
+              <span class="preset-badge ${barHeight === 28 ? 'active' : ''}" data-action="set-height" data-val="28">28 ${localize("thickness_max", this._hass)}</span>
+              <span class="preset-badge ${barHeight === 34 ? 'active' : ''}" data-action="set-height" data-val="34">34 ${localize("thickness_xxl", this._hass)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Durées Dynamiques -->
+        <div class="section-box">
+          <div class="section-title">
+            <span>${localize("active_periods_section", this._hass, { count: availablePeriods.length })}</span>
+            <button id="btn-sort-periods" class="btn-sort" title="${localize("sort", this._hass)}">${localize("sort", this._hass)}</button>
+          </div>
+
+          <div class="pills-group">
+            ${availablePeriods.map((p, idx) => `
+              <div class="period-chip">
+                <span>${formatPeriodLabel(p, this._hass)}</span>
+                <span class="chip-remove" data-action="remove-period" data-index="${idx}" title="Retirer">✕</span>
+              </div>
+            `).join("")}
+          </div>
+
+          <div class="form-group" style="margin-top: 8px;">
+            <label class="form-label">${localize("quick_suggestions", this._hass)}</label>
             <div class="pills-group">
               ${commonPresets.filter(pr => !availablePeriods.some(ap => parsePeriod(ap).raw === parsePeriod(pr).raw)).map(pr => `
-                <span class="preset-badge" data-action="add-preset" data-period="${pr}">+ ${formatPeriodLabel(pr)} (${pr})</span>
-              `).join("") || '<span style="font-size:12px;color:var(--secondary-text-color);">Toutes les suggestions courantes sont déjà ajoutées.</span>'}
+                <span class="preset-badge" data-action="add-preset" data-period="${pr}">+ ${formatPeriodLabel(pr, this._hass)} (${pr})</span>
+              `).join("") || '<span style="font-size:11px;color:var(--secondary-text-color);">${localize("all_added", this._hass)}</span>'}
             </div>
           </div>
 
-          <div class="form-group" style="margin-top: 10px;">
-            <label class="form-label">Ajouter une durée personnalisée libre (ex: 2d, 15d, 8w, 6m, 24m...)</label>
+          <div class="form-group" style="margin-top: 6px;">
             <div class="add-period-row">
-              <input type="text" id="custom-period-input" class="form-input" placeholder="Ex: 15d, 10w, 6m, 24m..." style="max-width: 240px;">
-              <button id="btn-add-period" class="btn-add-period">+ Ajouter cette durée</button>
+              <input type="text" id="custom-period-input" class="form-input" placeholder="${localize("add_custom_placeholder", this._hass)}" style="max-width: 220px; height: 28px;">
+              <button id="btn-add-period" class="btn-add-period">${localize("add_button", this._hass)}</button>
             </div>
           </div>
         </div>
 
         <!-- Liste des Capteurs Thermiques -->
         <div class="section-box">
-          <div class="section-title">
-            <span>🌡️ Capteurs Thermiques (${entities.length})</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div class="section-title" style="margin-bottom:0;">${localize("sensors_section", this._hass, { count: entities.length })}</div>
+            <div style="display:flex; gap:5px;">
+              <button id="btn-expand-all" class="btn-sort" style="font-size:10px; padding:2px 6px;" title="${localize("expand_all", this._hass)}">${localize("expand_all", this._hass)}</button>
+              <button id="btn-collapse-all" class="btn-sort" style="font-size:10px; padding:2px 6px;" title="${localize("collapse_all", this._hass)}">${localize("collapse_all", this._hass)}</button>
+            </div>
           </div>
 
           <div class="entities-list">
-            ${entitiesHtml || '<div style="color:var(--secondary-text-color); font-size:13px; font-style:italic;">Aucun capteur configuré. Cliquez sur le bouton ci-dessous pour en ajouter un.</div>'}
+            ${entitiesHtml || '<div style="color:var(--secondary-text-color); font-size:12px; font-style:italic; padding:6px 0;">${localize("no_sensors_configured", this._hass)}</div>'}
           </div>
 
           <button id="btn-add-sensor" class="btn-add-sensor">
-            <span>+ Ajouter un capteur</span>
+            <span>${localize("add_sensor", this._hass)}</span>
           </button>
         </div>
       </div>
@@ -608,6 +1128,34 @@ class TemperatureRangeCardEditor extends HTMLElement {
         this._fireConfigChanged();
       });
     }
+
+    const gradSelect = this.shadowRoot.getElementById("gradient-mode-select");
+    if (gradSelect) {
+      gradSelect.addEventListener("change", (e) => {
+        this._config.gradient_mode = e.target.value;
+        this._fireConfigChanged();
+        this._render();
+      });
+    }
+
+    const heightInput = this.shadowRoot.getElementById("bar-height-input");
+    if (heightInput) {
+      heightInput.addEventListener("change", (e) => {
+        const val = Math.max(6, Math.min(60, parseInt(e.target.value, 10) || 18));
+        this._config.bar_height = val;
+        this._fireConfigChanged();
+        this._render();
+      });
+    }
+
+    this.shadowRoot.querySelectorAll('[data-action="set-height"]').forEach(badge => {
+      badge.addEventListener("click", () => {
+        const val = parseInt(badge.dataset.val, 10) || 18;
+        this._config.bar_height = val;
+        this._fireConfigChanged();
+        this._render();
+      });
+    });
 
     // Bouton Trier
     const btnSort = this.shadowRoot.getElementById("btn-sort-periods");
@@ -686,6 +1234,15 @@ class TemperatureRangeCardEditor extends HTMLElement {
         picker.hass = this._hass;
         picker.value = item.entity || "";
         picker.includeDomains = ["sensor"];
+        picker.entityFilter = (stateObj) => {
+          if (!stateObj) return false;
+          const attrs = stateObj.attributes || {};
+          const uom = attrs.unit_of_measurement;
+          if (uom === "°C" || uom === "°F" || uom === "K") return true;
+          if (attrs.device_class === "temperature") return true;
+          const id = (stateObj.entity_id || "").toLowerCase();
+          return id.includes("temp_") || id.includes("_temp") || id.includes("temperature");
+        };
         picker.label = "Entité Home Assistant";
         picker.required = true;
         picker.addEventListener("value-changed", (ev) => {
@@ -727,40 +1284,147 @@ class TemperatureRangeCardEditor extends HTMLElement {
       });
     });
 
+    // Écouteurs pour déplier / replier un capteur
+    const toggleHeaders = this.shadowRoot.querySelectorAll('[data-action="toggle-expand"]');
+    toggleHeaders.forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const idx = parseInt(el.getAttribute("data-index"), 10);
+        if (this._expandedSet.has(idx)) {
+          this._expandedSet.delete(idx);
+        } else {
+          this._expandedSet.add(idx);
+        }
+        this._render();
+      });
+    });
+
+    // Tout déplier / Tout replier
+    const btnExpandAll = this.shadowRoot.getElementById("btn-expand-all");
+    if (btnExpandAll) {
+      btnExpandAll.addEventListener("click", () => {
+        this._config.entities.forEach((_, i) => this._expandedSet.add(i));
+        this._render();
+      });
+    }
+    const btnCollapseAll = this.shadowRoot.getElementById("btn-collapse-all");
+    if (btnCollapseAll) {
+      btnCollapseAll.addEventListener("click", () => {
+        this._expandedSet.clear();
+        this._render();
+      });
+    }
+
+    // Drag & Drop pour réordonner les capteurs
+    let dragSrcIndex = null;
+    const cards = this.shadowRoot.querySelectorAll(".entity-card");
+    cards.forEach(card => {
+      card.addEventListener("dragstart", (e) => {
+        dragSrcIndex = parseInt(card.getAttribute("data-index"), 10);
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", dragSrcIndex);
+        card.classList.add("dragging");
+      });
+
+      card.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (!card.classList.contains("drag-over")) {
+          card.classList.add("drag-over");
+        }
+      });
+
+      card.addEventListener("dragleave", () => {
+        card.classList.remove("drag-over");
+      });
+
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        card.classList.remove("drag-over");
+        const fromIdx = dragSrcIndex !== null ? dragSrcIndex : parseInt(e.dataTransfer.getData("text/plain"), 10);
+        const toIdx = parseInt(card.getAttribute("data-index"), 10);
+        if (fromIdx !== null && !isNaN(fromIdx) && fromIdx !== toIdx) {
+          const item = this._config.entities.splice(fromIdx, 1)[0];
+          this._config.entities.splice(toIdx, 0, item);
+
+          // Mettre à jour l'état déplié des cartes
+          const nextSet = new Set();
+          this._expandedSet.forEach(idx => {
+            if (idx === fromIdx) {
+              nextSet.add(toIdx);
+            } else if (fromIdx < toIdx && idx > fromIdx && idx <= toIdx) {
+              nextSet.add(idx - 1);
+            } else if (fromIdx > toIdx && idx >= toIdx && idx < fromIdx) {
+              nextSet.add(idx + 1);
+            } else {
+              nextSet.add(idx);
+            }
+          });
+          this._expandedSet = nextSet;
+
+          this._fireConfigChanged();
+          this._render();
+        }
+      });
+
+      card.addEventListener("dragend", () => {
+        dragSrcIndex = null;
+        card.classList.remove("dragging");
+        this.shadowRoot.querySelectorAll(".entity-card").forEach(c => c.classList.remove("drag-over", "dragging"));
+      });
+    });
+
     // Écouteurs pour les boutons d'action (monter, descendre, supprimer)
     const actionBtns = this.shadowRoot.querySelectorAll(".btn-icon");
     actionBtns.forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
         const action = btn.getAttribute("data-action");
         const idx = parseInt(btn.getAttribute("data-index"), 10);
         if (action === "up" && idx > 0) {
           const tmp = this._config.entities[idx];
           this._config.entities[idx] = this._config.entities[idx - 1];
           this._config.entities[idx - 1] = tmp;
+          const curExp = this._expandedSet.has(idx);
+          const prevExp = this._expandedSet.has(idx - 1);
+          if (curExp) this._expandedSet.add(idx - 1); else this._expandedSet.delete(idx - 1);
+          if (prevExp) this._expandedSet.add(idx); else this._expandedSet.delete(idx);
           this._fireConfigChanged();
           this._render();
         } else if (action === "down" && idx < this._config.entities.length - 1) {
           const tmp = this._config.entities[idx];
           this._config.entities[idx] = this._config.entities[idx + 1];
           this._config.entities[idx + 1] = tmp;
+          const curExp = this._expandedSet.has(idx);
+          const nextExp = this._expandedSet.has(idx + 1);
+          if (curExp) this._expandedSet.add(idx + 1); else this._expandedSet.delete(idx + 1);
+          if (nextExp) this._expandedSet.add(idx); else this._expandedSet.delete(idx);
           this._fireConfigChanged();
           this._render();
         } else if (action === "delete") {
           this._config.entities.splice(idx, 1);
+          const nextSet = new Set();
+          this._expandedSet.forEach(i => {
+            if (i < idx) nextSet.add(i);
+            else if (i > idx) nextSet.add(i - 1);
+          });
+          this._expandedSet = nextSet;
           this._fireConfigChanged();
           this._render();
         }
       });
     });
 
-    // Bouton ajouter un capteur
+    // Bouton ajouter un capteur (ouvert automatiquement en mode déplié)
     const btnAdd = this.shadowRoot.getElementById("btn-add-sensor");
     if (btnAdd) {
       btnAdd.addEventListener("click", () => {
         if (!Array.isArray(this._config.entities)) {
           this._config.entities = [];
         }
+        const newIndex = this._config.entities.length;
         this._config.entities.push({ entity: "", name: "" });
+        this._expandedSet.add(newIndex);
         this._fireConfigChanged();
         this._render();
       });
@@ -780,17 +1444,15 @@ class TemperatureRangeCard extends HTMLElement {
   }
 
   static getStubConfig(hass, entities) {
-    const tempSensors = (entities || []).filter(e => e.startsWith("sensor.") && (e.includes("temp") || e.includes("temperature")));
-    const firstSensor = tempSensors[0] || "sensor.temperature_exterieure_minimale";
     return {
       type: "custom:temperature-range-card",
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
+      gradient_mode: "global",
+      bar_height: 18,
       available_periods: ["10d", "20d", "30d", "20w", "12m"],
-      entities: [
-        { entity: firstSensor, name: "🌳 T° Extérieure" }
-      ]
+      entities: []
     };
   }
 
@@ -799,6 +1461,8 @@ class TemperatureRangeCard extends HTMLElement {
       title: "Amplitudes & Comparatif Journalier",
       show_scale: true,
       default_period: "10d",
+      gradient_mode: "global",
+      bar_height: 18,
       available_periods: ["10d", "20d", "30d", "20w", "12m"]
     }, config);
 
@@ -811,7 +1475,7 @@ class TemperatureRangeCard extends HTMLElement {
     } else if (this.config.entity) {
       this._entitiesList = [{ entity: this.config.entity, name: this.config.name || "Sélection" }];
     } else {
-      this._entitiesList = [{ entity: "sensor.temperature_exterieure_minimale", name: "T° Extérieure" }];
+      this._entitiesList = [];
     }
 
     const savedEntity = localStorage.getItem("temp_range_selected_entity");
@@ -860,6 +1524,10 @@ class TemperatureRangeCard extends HTMLElement {
   }
 
   async _fetchData() {
+    if (!this._selectedEntity) {
+      this._loading = false;
+      return;
+    }
     this._loading = true;
     try {
       const mode = this._selectedPeriod;
@@ -952,6 +1620,48 @@ class TemperatureRangeCard extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot || !this._hass) return;
+    const userLocale = getUserLocale(this._hass);
+
+    if (!this._entitiesList || this._entitiesList.length === 0 || !this._selectedEntity) {
+      this.shadowRoot.innerHTML = `
+        <style>
+          :host {
+            display: block;
+          }
+          ha-card {
+            background: var(--ha-card-background, var(--card-background-color, #1c1c1e));
+            border-radius: var(--ha-card-border-radius, 16px);
+            box-shadow: var(--ha-card-box-shadow, 0 4px 20px rgba(0, 0, 0, 0.15));
+            padding: 32px 20px;
+            color: var(--primary-text-color, #ffffff);
+            text-align: center;
+          }
+          .empty-icon {
+            font-size: 38px;
+            margin-bottom: 12px;
+          }
+          .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 6px;
+          }
+          .empty-desc {
+            font-size: 13px;
+            color: var(--secondary-text-color, #9e9e9e);
+            line-height: 1.5;
+          }
+        </style>
+        <ha-card>
+          <div class="empty-icon">🌡️</div>
+          <div class="empty-title">${this.config.title || "Comparatif & Amplitudes Thermiques"}</div>
+          <div class="empty-desc">
+            ${localize("no_sensors_title", this._hass)}<br>${localize("no_sensors_desc", this._hass)}
+          </div>
+        </ha-card>
+      `;
+      return;
+    }
+
     const cur = this._hass.states[this._selectedEntity];
     const unitMeasure = cur ? (cur.attributes.unit_of_measurement || "°C") : "°C";
 
@@ -964,7 +1674,7 @@ class TemperatureRangeCard extends HTMLElement {
 
     const allowedPeriods = sortedAllowed.map(p => ({
       id: p,
-      label: formatPeriodLabel(p),
+      label: formatPeriodLabel(p, this._hass),
       normalized: parsePeriod(p).raw
     }));
 
@@ -994,7 +1704,7 @@ class TemperatureRangeCard extends HTMLElement {
           const val = parseFloat(pt.s);
           if (isNaN(val)) continue;
           const ptDate = new Date(pt.lu * 1000);
-          const dStr = ptDate.toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit" });
+          const dStr = ptDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
           if (!histDaysMap.has(dStr)) {
             histDaysMap.set(dStr, { min: val, max: val });
           } else {
@@ -1011,15 +1721,15 @@ class TemperatureRangeCard extends HTMLElement {
       // 2. Initialiser les N jours
       for (let i = 0; i < daysCount; i++) {
         const targetDate = new Date(now.getTime() - i * 24 * 3600 * 1000);
-        const dateStr = targetDate.toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit" });
+        const dateStr = targetDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
         const targetTs = Math.floor(targetDate.getTime() / 1000);
         
         let label = "";
-        if (i === 0) label = "Auj.";
-        else if (i === 1) label = "Hier";
+        if (i === 0) label = localize("today", this._hass);
+        else if (i === 1) label = localize("yesterday", this._hass);
         else {
-          const w = targetDate.toLocaleDateString("fr-FR", { weekday: "short" });
-          const d = targetDate.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+          const w = targetDate.toLocaleDateString(userLocale, { weekday: "short" });
+          const d = targetDate.toLocaleDateString(userLocale, { day: "2-digit", month: "2-digit" });
           label = `${w.charAt(0).toUpperCase() + w.slice(1)} ${d}`;
         }
 
@@ -1088,7 +1798,7 @@ class TemperatureRangeCard extends HTMLElement {
       if (this._stats && this._stats.length) {
         for (const stat of this._stats) {
           const statDate = new Date(stat.start);
-          const statDateStr = statDate.toLocaleDateString("fr-FR", { year: "numeric", month: "2-digit", day: "2-digit" });
+          const statDateStr = statDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
           const row = rowsList.find(r => r.dateStr === statDateStr);
           if (row && !row.hasDirectHist) {
             if (stat.min !== null && stat.min !== undefined) {
@@ -1126,7 +1836,7 @@ class TemperatureRangeCard extends HTMLElement {
         for (const stat of this._stats) {
           const dt = new Date(stat.start);
           const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-          let mName = dt.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+          let mName = dt.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
           mName = mName.charAt(0).toUpperCase() + mName.slice(1);
           if (!monthsMap[key]) {
             monthsMap[key] = { label: mName, min: stat.min, max: stat.max };
@@ -1166,6 +1876,23 @@ class TemperatureRangeCard extends HTMLElement {
       globalMax = Math.ceil(globalMax + 0.5);
     }
     const globalSpan = globalMax - globalMin || 1;
+
+    const barHeight = Math.max(6, Math.min(60, parseInt(this.config.bar_height, 10) || 18));
+    const gradientMode = (this.config.gradient_mode === "local") ? "local" : "global";
+
+    // Typographie et espacements adaptatifs selon l'épaisseur des barres
+    const fontSize = Math.max(10, Math.min(18, Math.round(10.5 + (barHeight - 6) * 0.28)));
+    const tempFontSize = Math.max(9, Math.min(17, Math.round(10 + (barHeight - 6) * 0.26)));
+    const rowGap = Math.max(4, Math.min(20, Math.round(4 + (barHeight - 6) * 0.45)));
+    const tempMargin = Math.max(6, Math.min(14, Math.round(7 + (barHeight - 6) * 0.2)));
+    const dayWidth = Math.max(72, Math.min(115, Math.round(74 + (fontSize - 10) * 4.5)));
+    const tempWidth = Math.max(34, Math.min(52, Math.round(36 + (tempFontSize - 9) * 2)));
+    const spacerLeft = dayWidth + tempWidth + tempMargin;
+    const spacerRight = tempWidth + tempMargin;
+    const headerFontSize = Math.max(9, Math.min(12, Math.round(fontSize * 0.75)));
+
+    const dotTodaySize = Math.max(9, Math.round(barHeight * 0.62));
+    const dotPastSize = Math.max(6, Math.round(barHeight * 0.44));
 
     // Construction de l'Échelle des températures (Min, Intermédiaires, Max)
     const showScale = this.config.show_scale !== false;
@@ -1216,7 +1943,8 @@ class TemperatureRangeCard extends HTMLElement {
       scaleHtml = `
         <div class="scale-row">
           <div class="scale-spacer-left">
-            <span class="scale-legend-tag">Échelle</span>
+            <span class="scale-legend-tag">${localize("scale", this._hass)}</span>
+            <span class="scale-header-min">Min</span>
           </div>
           <div class="scale-track">
             <div class="scale-point min" style="left: 0%;">
@@ -1229,7 +1957,22 @@ class TemperatureRangeCard extends HTMLElement {
               <span class="scale-tick"></span>
             </div>
           </div>
-          <div class="scale-spacer-right"></div>
+          <div class="scale-spacer-right">
+            <span class="scale-header-max">Max</span>
+          </div>
+        </div>
+      `;
+    } else if (rowsList.length > 0) {
+      scaleHtml = `
+        <div class="scale-row no-track">
+          <div class="scale-spacer-left">
+            <span></span>
+            <span class="scale-header-min">Min</span>
+          </div>
+          <div class="scale-track" style="height:0; opacity:0; pointer-events:none;"></div>
+          <div class="scale-spacer-right">
+            <span class="scale-header-max">Max</span>
+          </div>
         </div>
       `;
     }
@@ -1255,20 +1998,30 @@ class TemperatureRangeCard extends HTMLElement {
         const dotPct = Math.max(0, Math.min(100, ((d.sameTimeVal - globalMin) / globalSpan) * 100));
         const dotClass = d.isToday ? "current-dot today" : "current-dot past";
         const dotTitle = d.isToday
-          ? `T° actuelle : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`
-          : `T° à ${nowTimeStr} : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`;
+          ? `${localize("current_temp", this._hass)} : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`
+          : `${localize("same_time", this._hass)} (${nowTimeStr}) : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`;
         dotHtml = `<div class="${dotClass}" style="left:${dotPct}%;" title="${dotTitle}"></div>`;
       }
 
       const todayClass = d.isToday ? "today" : "";
 
+      const gradientColors = "linear-gradient(90deg, #43a047 0%, #81c784 25%, #fdd835 55%, #fb8c00 80%, #e53935 100%)";
+      let fillGradientStyle = "";
+      if (gradientMode === "global") {
+        const bgSize = widthPct > 0 ? (10000 / widthPct) : 100;
+        const bgPos = (100 - widthPct) > 0.001 ? (leftPct / (100 - widthPct)) * 100 : 0;
+        fillGradientStyle = `background: ${gradientColors}; background-size: ${bgSize.toFixed(2)}% 100%; background-position: ${bgPos.toFixed(2)}% 0%;`;
+      } else {
+        fillGradientStyle = `background: ${gradientColors}; background-size: 100% 100%; background-position: 0% 0%;`;
+      }
+
       return `
         <div class="row">
           <div class="day-label ${todayClass}">${d.label}</div>
           <div class="temp temp-min">${minVal}°</div>
-          <div class="bar-track">
+          <div class="bar-track" style="height:${barHeight}px;">
             ${trackGuidesHtml}
-            <div class="bar-fill" style="left:${leftPct}%; width:${widthPct}%;"></div>
+            <div class="bar-fill" style="left:${leftPct}%; width:${widthPct}%; min-width:${Math.max(12, barHeight)}px; ${fillGradientStyle}"></div>
             ${dotHtml}
           </div>
           <div class="temp temp-max">${maxVal}°</div>
@@ -1410,29 +2163,53 @@ class TemperatureRangeCard extends HTMLElement {
         .scale-row {
           display: flex;
           align-items: flex-end;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
           user-select: none;
         }
         .scale-spacer-left {
-          width: 148px;
+          width: var(--trc-spacer-left, 148px);
           flex-shrink: 0;
           display: flex;
           align-items: center;
-          justify-content: flex-end;
-          padding-right: 12px;
+          justify-content: space-between;
           box-sizing: border-box;
         }
         .scale-legend-tag {
-          font-size: 10px;
+          font-size: 9px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           color: var(--secondary-text-color);
           opacity: 0.65;
         }
+        .scale-header-min {
+          width: var(--trc-temp-width, 44px);
+          margin-right: var(--trc-temp-margin, 10px);
+          text-align: right;
+          font-size: var(--trc-header-font-size, 10px);
+          font-weight: 600;
+          color: var(--secondary-text-color, #9e9e9e);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          opacity: 0.75;
+        }
         .scale-spacer-right {
-          width: 56px;
+          width: var(--trc-spacer-right, 56px);
           flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          box-sizing: border-box;
+        }
+        .scale-header-max {
+          width: var(--trc-temp-width, 44px);
+          margin-left: var(--trc-temp-margin, 10px);
+          text-align: left;
+          font-size: var(--trc-header-font-size, 10px);
+          font-weight: 600;
+          color: var(--secondary-text-color, #9e9e9e);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          opacity: 0.75;
         }
         .scale-track {
           flex: 1;
@@ -1481,18 +2258,19 @@ class TemperatureRangeCard extends HTMLElement {
         .rows-container {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: var(--trc-row-gap, 12px);
         }
         .row {
           display: flex;
           align-items: center;
-          font-size: 14px;
+          font-size: var(--trc-font-size, 14px);
           line-height: 1;
         }
         .day-label {
-          width: 92px;
+          width: var(--trc-day-width, 92px);
           flex-shrink: 0;
           font-weight: 500;
+          font-size: var(--trc-font-size, 14px);
           color: var(--primary-text-color);
           white-space: nowrap;
           font-variant-numeric: tabular-nums;
@@ -1502,26 +2280,26 @@ class TemperatureRangeCard extends HTMLElement {
           font-weight: 700;
         }
         .temp {
-          width: 44px;
+          width: var(--trc-temp-width, 44px);
           flex-shrink: 0;
-          font-size: 13px;
+          font-size: var(--trc-temp-font-size, 13px);
           font-variant-numeric: tabular-nums;
         }
         .temp-min {
           text-align: right;
           color: var(--secondary-text-color, #9e9e9e);
           opacity: 0.85;
-          margin-right: 12px;
+          margin-right: var(--trc-temp-margin, 10px);
         }
         .temp-max {
           text-align: left;
           color: var(--primary-text-color, #ffffff);
           font-weight: 600;
-          margin-left: 12px;
+          margin-left: var(--trc-temp-margin, 10px);
         }
         .bar-track {
           flex: 1;
-          height: 18px;
+          height: var(--trc-bar-height, 18px);
           background: rgba(255, 255, 255, 0.12);
           border-radius: 999px;
           position: relative;
@@ -1541,8 +2319,6 @@ class TemperatureRangeCard extends HTMLElement {
           top: 0;
           bottom: 0;
           border-radius: 999px;
-          min-width: 28px;
-          background: linear-gradient(90deg, #43a047 0%, #81c784 25%, #fdd835 55%, #fb8c00 80%, #e53935 100%);
           box-shadow: 0 0 6px rgba(129, 199, 132, 0.35);
           z-index: 2;
         }
@@ -1556,22 +2332,22 @@ class TemperatureRangeCard extends HTMLElement {
           transition: left 0.3s ease;
         }
         .current-dot.today {
-          width: 11px;
-          height: 11px;
+          width: var(--trc-dot-today-size, 11px);
+          height: var(--trc-dot-today-size, 11px);
           background: #ffffff;
           border: 2px solid #1a1a1a;
           box-shadow: 0 0 4px rgba(0,0,0,0.85);
           z-index: 4;
         }
         .current-dot.past {
-          width: 8px;
-          height: 8px;
+          width: var(--trc-dot-past-size, 8px);
+          height: var(--trc-dot-past-size, 8px);
           background: #cfd8dc;
           border: 1.5px solid #263238;
           opacity: 0.95;
         }
       </style>
-      <ha-card>
+      <ha-card style="--trc-bar-height: ${barHeight}px; --trc-dot-today-size: ${dotTodaySize}px; --trc-dot-past-size: ${dotPastSize}px; --trc-font-size: ${fontSize}px; --trc-temp-font-size: ${tempFontSize}px; --trc-row-gap: ${rowGap}px; --trc-temp-margin: ${tempMargin}px; --trc-day-width: ${dayWidth}px; --trc-temp-width: ${tempWidth}px; --trc-spacer-left: ${spacerLeft}px; --trc-spacer-right: ${spacerRight}px; --trc-header-font-size: ${headerFontSize}px;">
         <div class="header-row">
           <div class="card-header">${this.config.title || "Amplitudes Journalières"}</div>
           ${selectorHtml}
@@ -1581,7 +2357,7 @@ class TemperatureRangeCard extends HTMLElement {
         </div>
         ${scaleHtml}
         <div class="rows-container">
-          ${rowsHtml || '<div style="color:var(--secondary-text-color);font-size:13px;padding:8px 0;">Chargement des données historiques...</div>'}
+          ${rowsHtml || '<div style="color:var(--secondary-text-color);font-size:13px;padding:8px 0;">${localize("loading", this._hass)}</div>'}
         </div>
       </ha-card>
     `;

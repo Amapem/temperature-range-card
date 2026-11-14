@@ -1,52 +1,54 @@
 # Temperature Range Card for Home Assistant
 
-A sleek, modern Lovelace card designed to visualize daily, weekly, and monthly temperature amplitudes from your Home Assistant sensors.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
+[![GitHub release](https://img.shields.io/github/v/release/Amapem/temperature-range-card)](https://github.com/Amapem/temperature-range-card/releases)
 
-<p align="center">
-  <img src="images/screenshot.jpg" alt="Temperature Range Card Preview" width="600">
-</p>
+A modern, iOS / Apple Weather styled temperature range card for Home Assistant. Displays daily, weekly, and monthly minimum and maximum temperature amplitude bars with real sensor historical data, continuous temperature scale alignment, customizable bar thickness, and a visual UI editor with drag-and-drop reordering.
 
----
-
-## Key Features
-
-* **Real Sensor Amplitudes**: Designed for physical indoor and outdoor temperature sensors (`sensor.*`), not just weather forecasts.
-* **Long-Term Statistics Support**: Leverages Home Assistant's native recorder and long-term statistics engine (`statistics_during_period`) across completely custom granularities:
-  * 📅 **Flexible Days (`<N>d`)**: `2d`, `7d`, `10d`, `14d`, `15d`, `30d`, `60d`... with live current temperature marker and same-time comparison points for recent days.
-  * 🗓️ **Flexible Weeks (`<N>w`)**: `4w`, `8w`, `10w`, `20w`, `52w`... weekly summaries grouped by ISO week numbers.
-  * 🗓️ **Flexible Months (`<N>m`)**: `3m`, `6m`, `12m`, `24m`... extended seasonal multi-month analysis.
-* **Graduated Temperature Scale**: Top-aligned visual scale showing global min, intermediate reference markers, and global max, with vertical guidelines embedded in each row's track.
-* **Interactive Dynamic Selectors**: Switch between sensors and change observation periods directly from the card with automatic local storage persistence.
-* **Visual Card Editor**: Complete configuration UI to reorder, add, or remove sensors, adjust default views, add custom period chips, and toggle display options without writing YAML.
+![Temperature Range Card Preview](images/preview.png)
 
 ---
 
-## Installation
+## Features
 
-### Via HACS (Custom Repository)
+- 🌍 **Full Native Multi-Language Support (i18n)**:
+  - Automatically localized according to the user's Home Assistant language.
+  - 6 languages supported out of the box: **English (`en`)**, **Français (`fr`)**, **Deutsch (`de`)**, **Español (`es`)**, **Italiano (`it`)**, and **Nederlands (`nl`)**.
+  - Dynamic localized date formatting for days and months based on user locale.
+- 🍏 **Apple Weather Continuous Temperature Gradient**:
+  - `gradient_mode: global` (default): Colors map to absolute temperature positions on the scale, ensuring identical colors for the same temperature across all days and seasons.
+  - `gradient_mode: local`: Relative gradient spanning each day's individual amplitude from green to red.
+- 📏 **Fully Customizable Bar Thickness**:
+  - `bar_height`: Adjust track height from `6px` to `60px` (default `18px`). Includes quick presets (`10px`, `14px`, `18px`, `24px`, `28px`, `34px`) and adaptive dot sizing.
+- 📐 **Graduated Temperature Scale**: Min, intermediate ticks, and Max markers aligned with discrete vertical guide lines.
+- ⏱️ **Dynamic Custom Periods (`<N>d`, `<N>w`, `<N>m`)**:
+  - Days: `1d`, `2d`, `7d`, `10d`, `14d`, `15d`, `30d`...
+  - Weeks: `1w`, `2w`, `4w`, `8w`, `10w`, `20w`... (ISO week grouping)
+  - Months: `1m`, `3m`, `6m`, `12m`, `24m`... (Multi-month overview)
+  - Chronological auto-sorting (Days → Weeks → Months).
+- 🎛️ **Full Visual UI Editor (Lovelace)**:
+  - **Ultra-compact sensor list**: 28px collapsible rows displaying clean custom names.
+  - **Native Drag & Drop (`≡`)**: Effortlessly reorder sensors with the drag handle.
+  - **Quick Expand/Collapse**: Click any row to unfold details or use "Tout déplier / Tout replier".
+  - **Strict Sensor Filter**: Entity picker filters strictly for real temperature sensors (`device_class: temperature` or °C/°F units).
+- ⚪ **Reference Temperature Dots**:
+  - White dot with dark border for current real-time temperature.
+  - Comparison dots for past days at the exact same hour across full recorder retention.
+- ⚡ **Zero Dependencies**: Pure Vanilla Web Components, ultra fast and lightweight.
+
+---
+
+## Installation via HACS
 
 1. Open **HACS** in your Home Assistant dashboard.
-2. Click the top-right menu (three dots) and select **Custom repositories**.
-3. Enter the repository URL: `https://github.com/Amapem/temperature-range-card`.
-4. Select category: **Dashboard** (or **Lovelace**).
-5. Click **Add**, find **Temperature Range Card** in the list, and click **Download**.
-6. Refresh your browser cache.
-
-### Manual Installation
-
-1. Download `temperature-range-card.js` from the latest release.
-2. Place the file inside your Home Assistant config directory at `/config/www/temperature-range-card.js`.
-3. Add a Lovelace resource in Home Assistant (**Settings** > **Dashboards** > **Three dots** > **Resources**):
-   * URL: `/local/temperature-range-card.js`
-   * Resource type: `JavaScript Module`
+2. Click the three dots in the top-right corner and select **Custom repositories**.
+3. Add the repository URL: `https://github.com/Amapem/temperature-range-card`
+4. Set category to **Lovelace (Dashboard)**.
+5. Search for **Temperature Range Card** and click **Download**.
 
 ---
 
-## Dashboard Configuration
-
-### Visual Editor
-
-Add a new card to your dashboard, search for **Temperature Range Card**, and configure your entities and preferences directly from the visual interface.
+## Configuration
 
 ### YAML Example
 
@@ -56,6 +58,8 @@ title: Temperature Overview
 default_period: 10d
 default_entity: sensor.outdoor_temperature
 show_scale: true
+gradient_mode: global
+bar_height: 18
 available_periods:
   - 10d
   - 15d
@@ -67,11 +71,11 @@ available_periods:
   - 24m
 entities:
   - entity: sensor.outdoor_temperature
-    name: Outdoor Sensor
+    name: 🌳 Outdoor Sensor
   - entity: sensor.living_room_temperature
-    name: Living Room
+    name: 🛋️ Living Room
   - entity: sensor.bedroom_temperature
-    name: Bedroom
+    name: 🛏️ Bedroom
 ```
 
 ---
@@ -81,12 +85,14 @@ entities:
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `type` | string | **Required** | `custom:temperature-range-card` |
-| `entities` | list | **Required** | List of sensor objects (`entity` and `name`) |
+| `entities` | list | `[]` | List of sensor objects (`entity` and `name`) |
 | `title` | string | `Amplitudes & Comparatif Journalier` | Header title of the card |
 | `default_entity` | string | First entity in list | Entity selected when the card is first loaded |
 | `default_period` | string | `10d` | Initial period view (any valid period, e.g. `10d`, `15d`, `20w`, `6m`) |
 | `show_scale` | boolean | `true` | Displays the graduated min/intermediate/max temperature scale |
-| `available_periods` | list | `[10d, 20d, 30d, 20w, 12m]` | List of allowed period options in dropdown (`<N>d`, `<N>w`, `<N>m`) |
+| `gradient_mode` | string | `global` | `global` (Apple Weather continuous scale) or `local` (0%-100% per bar) |
+| `bar_height` | number | `18` | Bar thickness in pixels (from 6 to 60 px) |
+| `available_periods` | list | `[10d, 20d, 30d, 20w, 12m]` | List of allowed period options (`<N>d`, `<N>w`, `<N>m`) |
 
 ---
 
