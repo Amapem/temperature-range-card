@@ -11,14 +11,13 @@ A sleek, modern Lovelace card designed to visualize daily, weekly, and monthly t
 ## Key Features
 
 * **Real Sensor Amplitudes**: Designed for physical indoor and outdoor temperature sensors (`sensor.*`), not just weather forecasts.
-* **Long-Term Statistics Support**: Leverages Home Assistant's native recorder and long-term statistics engine (`statistics_during_period`) across multiple granularities:
-  * 📅 **10 Days**: Daily min/max amplitude with real-time current temperature marker and same-time comparison points from past days.
-  * 📅 **20 Days & 30 Days**: Extended multi-day analysis.
-  * 🗓️ **20 Weeks**: Weekly summaries grouped with ISO week numbers.
-  * 🗓️ **12 Months**: Annual seasonal overview.
+* **Long-Term Statistics Support**: Leverages Home Assistant's native recorder and long-term statistics engine (`statistics_during_period`) across completely custom granularities:
+  * 📅 **Flexible Days (`<N>d`)**: `2d`, `7d`, `10d`, `14d`, `15d`, `30d`, `60d`... with live current temperature marker and same-time comparison points for recent days.
+  * 🗓️ **Flexible Weeks (`<N>w`)**: `4w`, `8w`, `10w`, `20w`, `52w`... weekly summaries grouped by ISO week numbers.
+  * 🗓️ **Flexible Months (`<N>m`)**: `3m`, `6m`, `12m`, `24m`... extended seasonal multi-month analysis.
 * **Graduated Temperature Scale**: Top-aligned visual scale showing global min, intermediate reference markers, and global max, with vertical guidelines embedded in each row's track.
 * **Interactive Dynamic Selectors**: Switch between sensors and change observation periods directly from the card with automatic local storage persistence.
-* **Visual Card Editor**: Complete configuration UI to reorder, add, or remove sensors, adjust default views, and toggle display options without writing YAML.
+* **Visual Card Editor**: Complete configuration UI to reorder, add, or remove sensors, adjust default views, add custom period chips, and toggle display options without writing YAML.
 
 ---
 
@@ -59,10 +58,13 @@ default_entity: sensor.outdoor_temperature
 show_scale: true
 available_periods:
   - 10d
-  - 20d
+  - 15d
   - 30d
-  - week
-  - month
+  - 10w
+  - 20w
+  - 6m
+  - 12m
+  - 24m
 entities:
   - entity: sensor.outdoor_temperature
     name: Outdoor Sensor
@@ -82,9 +84,9 @@ entities:
 | `entities` | list | **Required** | List of sensor objects (`entity` and `name`) |
 | `title` | string | `Amplitudes & Comparatif Journalier` | Header title of the card |
 | `default_entity` | string | First entity in list | Entity selected when the card is first loaded |
-| `default_period` | string | `10d` | Initial period view (`10d`, `20d`, `30d`, `week`, `month`) |
+| `default_period` | string | `10d` | Initial period view (any valid period, e.g. `10d`, `15d`, `20w`, `6m`) |
 | `show_scale` | boolean | `true` | Displays the graduated min/intermediate/max temperature scale |
-| `available_periods` | list | `[10d, 20d, 30d, week, month]` | Allowed period options available in the card dropdown |
+| `available_periods` | list | `[10d, 20d, 30d, 20w, 12m]` | List of allowed period options in dropdown (`<N>d`, `<N>w`, `<N>m`) |
 
 ---
 

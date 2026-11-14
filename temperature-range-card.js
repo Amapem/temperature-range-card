@@ -1,24 +1,22 @@
 /**
  * Temperature Range Card (Style iOS Weather / Apple Weather)
- * v3.0 :
- * - Éditeur visuel interactif complet (TemperatureRangeCardEditor) pour Home Assistant Lovelace :
+ * v3.1.0 :
+ * - Durées entièrement personnalisables et dynamiques (<nombre><unité>) :
+ *   - 'd' (jours) : 2d, 7d, 10d, 14d, 15d, 20d, 30d, 60d...
+ *   - 'w' (semaines) : 4w, 8w, 10w, 12w, 20w, 52w... (groupement par semaine ISO)
+ *   - 'm' (mois) : 3m, 6m, 12m, 24m... (synthèse multi-mensuelle étendue)
+ *   - Rétrocompatibilité totale avec 'week' (20w) et 'month' (12m)
+ * - Éditeur visuel interactif complet (TemperatureRangeCardEditor) :
+ *   - Gestion dynamique des durées autorisées (pills cliquables, presets rapides et saisie libre d'une durée personnalisée)
  *   - Gestion de la liste des capteurs : ajout, suppression, réorganisation monter/descendre, sélecteur d'entité et renommage personnalisé
- *   - Configuration de la durée par défaut (10 jours, 20 jours, 30 jours, 20 semaines, 12 mois)
- *   - Sélection des options de durée visibles dans le menu déroulant (10j, 20j, 30j, semaine, mois)
- *   - Choix du capteur affiché par défaut
+ *   - Configuration de la durée par défaut et du capteur par défaut
  *   - Toggle pour afficher/masquer l'échelle des températures
  * - Échelle des températures graphique alignée au pixel près au-dessus des barres :
  *   - Bornes Min (0%) et Max (100%) de la plage globale de la barre grise
  *   - Valeurs et repères intermédiaires arrondis positionnés fidèlement à leur température
- *   - Lignes guides verticales discrètes dans chaque barre grise pour repérer les paliers de température
- * - Modes d'affichage sélectionnables dynamiquement :
- *   - 📅 10 jours (avec point blanc actuel et points gris à la même heure)
- *   - 📅 20 jours (barres min/max étendues, points sur les 10 jours récents)
- *   - 📅 30 jours (barres min/max étendues, points sur les 10 jours récents)
- *   - 🗓️ 20 semaines (numéros de semaine ISO : Sem. 46, Sem. 45... sur 20 semaines)
- *   - 🗓️ 12 mois (synthèse annuelle sur 12 mois complets)
- * - Support direct des statistiques long-terme Home Assistant (recorder/statistics_during_period)
- * - Mémorisation automatique des choix dans le navigateur (localStorage)
+ *   - Lignes guides verticales discrètes dans chaque barre grise
+ * - Points comparatifs à la même heure sur les 10 derniers jours
+ * - Zéro dépendance : Vanilla Web Components natif ultra rapide
  */
 
 function getISOWeekNumber(d) {
@@ -27,6 +25,36 @@ function getISOWeekNumber(d) {
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
   return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+
+function parsePeriod(periodStr) {
+  if (!periodStr) return { count: 10, unit: "d", raw: "10d" };
+  const str = String(periodStr).trim().toLowerCase();
+  if (str === "week") return { count: 20, unit: "w", raw: "20w" };
+  if (str === "month") return { count: 12, unit: "m", raw: "12m" };
+  const match = str.match(/^(\d+)([dwm])$/);
+  if (match) {
+    return {
+      count: parseInt(match[1], 10),
+      unit: match[2],
+      raw: str
+    };
+  }
+  return { count: 10, unit: "d", raw: "10d" };
+}
+
+function formatPeriodLabel(periodStr) {
+  const { count, unit } = parsePeriod(periodStr);
+  if (unit === "d") {
+    return `📅 ${count} jour${count > 1 ? "s" : ""}`;
+  }
+  if (unit === "w") {
+    return `🗓️ ${count} semaine${count > 1 ? "s" : ""}`;
+  }
+  if (unit === "m") {
+    return `🗓️ ${count} mois`;
+  }
+  return periodStr;
 }
 
 // =============================================================================
@@ -46,12 +74,12 @@ class TemperatureRangeCardEditor extends HTMLElement {
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
-      available_periods: ["10d", "20d", "30d", "week", "month"],
+      available_periods: ["10d", "20d", "30d", "20w", "12m"],
       entities: []
     }, structuredClone(config));
 
     if (!Array.isArray(this._config.available_periods) || this._config.available_periods.length === 0) {
-      this._config.available_periods = ["10d", "20d", "30d", "week", "month"];
+      this._config.available_periods = ["10d", "20d", "30d", "20w", "12m"];
     }
 
     if (Array.isArray(this._config.entities)) {
@@ -102,17 +130,11 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
     const entities = this._config.entities || [];
     const showScale = this._config.show_scale !== false;
-    const availablePeriods = this._config.available_periods || ["10d", "20d", "30d", "week", "month"];
-    const defaultPeriod = this._config.default_period || "10d";
+    const availablePeriods = this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"];
+    const defaultPeriod = this._config.default_period || availablePeriods[0] || "10d";
     const defaultEntity = this._config.default_entity || (entities[0] ? entities[0].entity : "");
 
-    const periodDefinitions = [
-      { id: "10d", label: "📅 10 jours" },
-      { id: "20d", label: "📅 20 jours" },
-      { id: "30d", label: "📅 30 jours" },
-      { id: "week", label: "🗓️ 20 semaines" },
-      { id: "month", label: "🗓️ 12 mois" }
-    ];
+    const commonPresets = ["2d", "7d", "10d", "14d", "15d", "20d", "30d", "10w", "20w", "6m", "12m", "24m"];
 
     const entitiesHtml = entities.map((item, index) => {
       const displayName = item.name || item.entity || `Capteur #${index + 1}`;
@@ -212,24 +234,70 @@ class TemperatureRangeCardEditor extends HTMLElement {
           gap: 8px;
           margin-top: 4px;
         }
-        .period-pill {
-          padding: 7px 14px;
+        .period-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 12px;
           border-radius: 20px;
           font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          user-select: none;
-          transition: all 0.2s ease;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          background: rgba(255, 255, 255, 0.04);
-          color: var(--secondary-text-color, #9e9e9e);
-        }
-        .period-pill.active {
+          font-weight: 600;
           background: var(--primary-color, #03a9f4);
           color: #ffffff;
-          font-weight: 600;
+          border: 1px solid var(--primary-color, #03a9f4);
+          box-shadow: 0 2px 6px rgba(3, 169, 244, 0.3);
+        }
+        .chip-remove {
+          cursor: pointer;
+          font-size: 11px;
+          background: rgba(0, 0, 0, 0.25);
+          border-radius: 50%;
+          width: 16px;
+          height: 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+        }
+        .chip-remove:hover {
+          background: rgba(0, 0, 0, 0.5);
+        }
+        .preset-badge {
+          padding: 5px 10px;
+          border-radius: 16px;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--secondary-text-color, #9e9e9e);
+          border: 1px dashed rgba(255, 255, 255, 0.2);
+          transition: all 0.2s ease;
+        }
+        .preset-badge:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: var(--primary-text-color, #ffffff);
           border-color: var(--primary-color, #03a9f4);
-          box-shadow: 0 2px 8px rgba(3, 169, 244, 0.35);
+        }
+        .add-period-row {
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .btn-add-period {
+          background: rgba(3, 169, 244, 0.15);
+          border: 1px solid var(--primary-color, #03a9f4);
+          color: var(--primary-color, #03a9f4);
+          border-radius: 8px;
+          padding: 0 16px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
+        }
+        .btn-add-period:hover {
+          background: var(--primary-color, #03a9f4);
+          color: #ffffff;
         }
         .switch-container {
           display: flex;
@@ -398,18 +466,18 @@ class TemperatureRangeCardEditor extends HTMLElement {
           <div class="form-group">
             <label class="form-label">Période d'affichage par défaut</label>
             <select id="default-period-select" class="form-select">
-              <option value="10d" ${defaultPeriod === "10d" ? "selected" : ""}>📅 10 jours</option>
-              <option value="20d" ${defaultPeriod === "20d" ? "selected" : ""}>📅 20 jours</option>
-              <option value="30d" ${defaultPeriod === "30d" ? "selected" : ""}>📅 30 jours</option>
-              <option value="week" ${defaultPeriod === "week" ? "selected" : ""}>🗓️ 20 semaines</option>
-              <option value="month" ${defaultPeriod === "month" ? "selected" : ""}>🗓️ 12 mois</option>
+              ${availablePeriods.map(p => `
+                <option value="${p}" ${p === defaultPeriod ? "selected" : ""}>
+                  ${formatPeriodLabel(p)} (${p})
+                </option>
+              `).join("")}
             </select>
           </div>
         </div>
 
-        <!-- Options d'Affichage & Durées -->
+        <!-- Options d'Affichage & Durées Dynamiques -->
         <div class="section-box">
-          <div class="section-title">📊 Options d'Affichage & Échelle</div>
+          <div class="section-title">📊 Options d'Affichage & Durées Disponibles</div>
 
           <div class="form-group">
             <label class="switch-container">
@@ -419,14 +487,32 @@ class TemperatureRangeCardEditor extends HTMLElement {
             </label>
           </div>
 
-          <div class="form-group" style="margin-top: 12px;">
-            <label class="form-label">Options de durée disponibles dans le menu de la carte</label>
+          <div class="form-group" style="margin-top: 14px;">
+            <label class="form-label">Durées actives dans le menu de la carte (cliquez sur ✕ pour retirer)</label>
             <div class="pills-group">
-              ${periodDefinitions.map(p => `
-                <div class="period-pill ${availablePeriods.includes(p.id) ? "active" : ""}" data-period="${p.id}">
-                  ${p.label}
+              ${availablePeriods.map((p, idx) => `
+                <div class="period-chip">
+                  <span>${formatPeriodLabel(p)}</span>
+                  <span class="chip-remove" data-action="remove-period" data-index="${idx}" title="Retirer cette durée">✕</span>
                 </div>
               `).join("")}
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label">Suggestions rapides à ajouter</label>
+            <div class="pills-group">
+              ${commonPresets.filter(pr => !availablePeriods.some(ap => parsePeriod(ap).raw === parsePeriod(pr).raw)).map(pr => `
+                <span class="preset-badge" data-action="add-preset" data-period="${pr}">+ ${formatPeriodLabel(pr)} (${pr})</span>
+              `).join("") || '<span style="font-size:12px;color:var(--secondary-text-color);">Toutes les suggestions courantes sont déjà ajoutées.</span>'}
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label class="form-label">Ajouter une durée personnalisée libre (ex: 2d, 15d, 8w, 6m, 24m...)</label>
+            <div class="add-period-row">
+              <input type="text" id="custom-period-input" class="form-input" placeholder="Ex: 15d, 10w, 6m, 24m..." style="max-width: 240px;">
+              <button id="btn-add-period" class="btn-add-period">+ Ajouter cette durée</button>
             </div>
           </div>
         </div>
@@ -481,24 +567,60 @@ class TemperatureRangeCardEditor extends HTMLElement {
       });
     }
 
-    // Gestion des pilules de sélection des durées disponibles
-    const pills = this.shadowRoot.querySelectorAll(".period-pill");
-    pills.forEach(pill => {
-      pill.addEventListener("click", () => {
-        const pId = pill.getAttribute("data-period");
-        let current = [...(this._config.available_periods || ["10d", "20d", "30d", "week", "month"])];
-        if (current.includes(pId)) {
-          if (current.length > 1) {
-            current = current.filter(x => x !== pId);
-          }
-        } else {
-          current.push(pId);
+    // Retirer une durée (chip)
+    const removeBtns = this.shadowRoot.querySelectorAll('[data-action="remove-period"]');
+    removeBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.getAttribute("data-index"), 10);
+        let current = [...(this._config.available_periods || [])];
+        if (current.length > 1) {
+          current.splice(idx, 1);
+          this._config.available_periods = current;
+          this._fireConfigChanged();
+          this._render();
         }
-        this._config.available_periods = current;
-        this._fireConfigChanged();
-        this._render();
       });
     });
+
+    // Ajouter un preset
+    const presetBadges = this.shadowRoot.querySelectorAll('[data-action="add-preset"]');
+    presetBadges.forEach(badge => {
+      badge.addEventListener("click", () => {
+        const pVal = badge.getAttribute("data-period");
+        let current = [...(this._config.available_periods || [])];
+        if (!current.includes(pVal)) {
+          current.push(pVal);
+          this._config.available_periods = current;
+          this._fireConfigChanged();
+          this._render();
+        }
+      });
+    });
+
+    // Ajouter une durée libre personnalisée
+    const customInput = this.shadowRoot.getElementById("custom-period-input");
+    const btnAddPeriod = this.shadowRoot.getElementById("btn-add-period");
+    const handleAddCustom = () => {
+      if (!customInput) return;
+      const raw = customInput.value.trim().toLowerCase();
+      if (!raw) return;
+      const parsed = parsePeriod(raw);
+      if (parsed) {
+        let current = [...(this._config.available_periods || [])];
+        if (!current.some(x => parsePeriod(x).raw === parsed.raw)) {
+          current.push(parsed.raw);
+          this._config.available_periods = current;
+          this._fireConfigChanged();
+          this._render();
+        }
+      }
+    };
+    if (btnAddPeriod) btnAddPeriod.addEventListener("click", handleAddCustom);
+    if (customInput) {
+      customInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleAddCustom();
+      });
+    }
 
     // Insérer les sélecteurs d'entités ha-entity-picker
     const slots = this.shadowRoot.querySelectorAll(".picker-slot");
@@ -613,7 +735,7 @@ class TemperatureRangeCard extends HTMLElement {
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
-      available_periods: ["10d", "20d", "30d", "week", "month"],
+      available_periods: ["10d", "20d", "30d", "20w", "12m"],
       entities: [
         { entity: firstSensor, name: "🌳 T° Extérieure" }
       ]
@@ -625,7 +747,7 @@ class TemperatureRangeCard extends HTMLElement {
       title: "Amplitudes & Comparatif Journalier",
       show_scale: true,
       default_period: "10d",
-      available_periods: ["10d", "20d", "30d", "week", "month"]
+      available_periods: ["10d", "20d", "30d", "20w", "12m"]
     }, config);
 
     // Initialiser les entités sélectionnables
@@ -644,14 +766,15 @@ class TemperatureRangeCard extends HTMLElement {
     const validSavedEntity = this._entitiesList.some(e => e.entity === savedEntity) ? savedEntity : null;
     this._selectedEntity = validSavedEntity || this.config.default_entity || (this._entitiesList[0] ? this._entitiesList[0].entity : "");
 
-    const allowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
+    const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
-      : ["10d", "20d", "30d", "week", "month"];
+      : ["10d", "20d", "30d", "20w", "12m"];
 
     const savedPeriod = localStorage.getItem("temp_range_selected_period");
-    let chosenPeriod = savedPeriod || this.config.default_period || "10d";
-    if (!allowed.includes(chosenPeriod)) {
-      chosenPeriod = allowed[0] || "10d";
+    let chosenPeriod = savedPeriod || this.config.default_period || rawAllowed[0];
+    const isChosenValid = rawAllowed.some(p => parsePeriod(p).raw === parsePeriod(chosenPeriod).raw);
+    if (!isChosenValid) {
+      chosenPeriod = rawAllowed[0] || "10d";
     }
     this._selectedPeriod = chosenPeriod;
 
@@ -687,13 +810,13 @@ class TemperatureRangeCard extends HTMLElement {
     this._loading = true;
     try {
       const mode = this._selectedPeriod;
+      const { count, unit } = parsePeriod(mode);
       const now = Date.now();
       const statsIds = [this._selectedEntity];
 
-      if (mode === "10d" || mode === "20d" || mode === "30d") {
-        const days = parseInt(mode) || 10;
-        const statsStart = new Date(now - (days + 1) * 24 * 3600 * 1000).toISOString();
-        const histDays = Math.min(days, 10);
+      if (unit === "d") {
+        const statsStart = new Date(now - (count + 1) * 24 * 3600 * 1000).toISOString();
+        const histDays = Math.min(count, 10);
         const histStart = new Date(now - (histDays + 1) * 24 * 3600 * 1000).toISOString();
 
         // 1. Fetch detailed history for same-time points (last 10 days max)
@@ -717,9 +840,9 @@ class TemperatureRangeCard extends HTMLElement {
         this._history = histRes[this._selectedEntity] || [];
         this._stats = statsRes[this._selectedEntity] || [];
 
-      } else if (mode === "week") {
-        // Fetch 22 weeks of statistics to reliably display at least 20 weeks
-        const statsStart = new Date(now - (22 * 7 * 24 * 3600 * 1000)).toISOString();
+      } else if (unit === "w") {
+        // Fetch count + 2 weeks of statistics to reliably display count full weeks
+        const statsStart = new Date(now - ((count + 2) * 7 * 24 * 3600 * 1000)).toISOString();
         const statsRes = await this._hass.callWS({
           type: "recorder/statistics_during_period",
           start_time: statsStart,
@@ -729,9 +852,9 @@ class TemperatureRangeCard extends HTMLElement {
         this._history = [];
         this._stats = statsRes[this._selectedEntity] || [];
 
-      } else if (mode === "month") {
-        // Fetch daily statistics for last 380 days to display 12 full months
-        const statsStart = new Date(now - (380 * 24 * 3600 * 1000)).toISOString();
+      } else if (unit === "m") {
+        // Fetch daily statistics for count * 32 days to display count full months
+        const statsStart = new Date(now - ((count * 32 + 10) * 24 * 3600 * 1000)).toISOString();
         const statsRes = await this._hass.callWS({
           type: "recorder/statistics_during_period",
           start_time: statsStart,
@@ -776,34 +899,34 @@ class TemperatureRangeCard extends HTMLElement {
   _render() {
     if (!this.shadowRoot || !this._hass) return;
     const cur = this._hass.states[this._selectedEntity];
-    const unit = cur ? (cur.attributes.unit_of_measurement || "°C") : "°C";
+    const unitMeasure = cur ? (cur.attributes.unit_of_measurement || "°C") : "°C";
 
-    const allPeriods = [
-      { id: "10d", label: "📅 10 jours" },
-      { id: "20d", label: "📅 20 jours" },
-      { id: "30d", label: "📅 30 jours" },
-      { id: "week", label: "🗓️ 20 semaines" },
-      { id: "month", label: "🗓️ 12 mois" }
-    ];
-    const allowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
+    const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
-      : ["10d", "20d", "30d", "week", "month"];
-    const visiblePeriods = allPeriods.filter(p => allowed.includes(p.id));
+      : ["10d", "20d", "30d", "20w", "12m"];
 
-    let mode = this._selectedPeriod || this.config.default_period || "10d";
-    if (!allowed.includes(mode)) {
-      mode = visiblePeriods[0] ? visiblePeriods[0].id : "10d";
-      this._selectedPeriod = mode;
+    const allowedPeriods = rawAllowed.map(p => ({
+      id: p,
+      label: formatPeriodLabel(p),
+      normalized: parsePeriod(p).raw
+    }));
+
+    let currentMode = this._selectedPeriod || this.config.default_period || allowedPeriods[0].id;
+    const currentParsed = parsePeriod(currentMode);
+    if (!allowedPeriods.some(p => p.normalized === currentParsed.raw)) {
+      currentMode = allowedPeriods[0].id;
+      this._selectedPeriod = currentMode;
     }
 
+    const { count, unit } = parsePeriod(currentMode);
     const now = new Date();
     const nowTimeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
     let rowsList = [];
     let subtitleHtml = "";
 
-    if (mode === "10d" || mode === "20d" || mode === "30d") {
-      const daysCount = parseInt(mode) || 10;
+    if (unit === "d") {
+      const daysCount = count;
       subtitleHtml = daysCount <= 10
         ? `<span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
            <span class="legend-item"><span class="legend-dot past"></span> Même heure (${nowTimeStr}) les jours passés</span>`
@@ -905,10 +1028,10 @@ class TemperatureRangeCard extends HTMLElement {
         }
       }
 
-    } else if (mode === "week") {
-      subtitleHtml = `<span>Synthèse hebdomadaire des 20 dernières semaines (Numéros de semaine ISO)</span>`;
+    } else if (unit === "w") {
+      subtitleHtml = `<span>Synthèse hebdomadaire des ${count} dernières semaines (Numéros de semaine ISO)</span>`;
       if (this._stats && this._stats.length) {
-        const sorted = [...this._stats].reverse().slice(0, 20);
+        const sorted = [...this._stats].reverse().slice(0, count);
         rowsList = sorted.map((stat, idx) => {
           const sDate = new Date(stat.start);
           const wNum = getISOWeekNumber(sDate);
@@ -923,8 +1046,8 @@ class TemperatureRangeCard extends HTMLElement {
         });
       }
 
-    } else if (mode === "month") {
-      subtitleHtml = `<span>Synthèse mensuelle des 12 derniers mois (Évolution des saisons & amplitudes)</span>`;
+    } else if (unit === "m") {
+      subtitleHtml = `<span>Synthèse mensuelle des ${count} derniers mois (Évolution des saisons & amplitudes)</span>`;
       if (this._stats && this._stats.length) {
         const monthsMap = {};
         for (const stat of this._stats) {
@@ -943,7 +1066,7 @@ class TemperatureRangeCard extends HTMLElement {
             }
           }
         }
-        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, 12);
+        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
         rowsList = sortedKeys.map((k, idx) => ({
           label: monthsMap[k].label,
           min: monthsMap[k].min,
@@ -1059,8 +1182,8 @@ class TemperatureRangeCard extends HTMLElement {
         const dotPct = Math.max(0, Math.min(100, ((d.sameTimeVal - globalMin) / globalSpan) * 100));
         const dotClass = d.isToday ? "current-dot today" : "current-dot past";
         const dotTitle = d.isToday
-          ? `T° actuelle : ${d.sameTimeVal.toFixed(1)}${unit}`
-          : `T° à ${nowTimeStr} : ${d.sameTimeVal.toFixed(1)}${unit}`;
+          ? `T° actuelle : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`
+          : `T° à ${nowTimeStr} : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`;
         dotHtml = `<div class="${dotClass}" style="left:${dotPct}%;" title="${dotTitle}"></div>`;
       }
 
@@ -1094,8 +1217,10 @@ class TemperatureRangeCard extends HTMLElement {
         </div>
         <div class="select-wrapper">
           <select id="periodSelect" class="entity-select period-select" title="Période & Regroupement">
-            ${visiblePeriods.map(p => `
-              <option value="${p.id}" ${mode === p.id ? "selected" : ""}>${p.label}</option>
+            ${allowedPeriods.map(p => `
+              <option value="${p.id}" ${p.normalized === currentParsed.raw ? "selected" : ""}>
+                ${p.label}
+              </option>
             `).join("")}
           </select>
         </div>
@@ -1404,6 +1529,6 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "temperature-range-card",
   name: "Temperature Range Card",
-  description: "Barres d'amplitudes thermiques Min - Max style Apple Weather avec statistiques longues durées, échelle graduée et éditeur visuel",
+  description: "Barres d'amplitudes thermiques Min - Max style Apple Weather avec statistiques longues durées configurables (jours, semaines, mois), échelle graduée et éditeur visuel",
   preview: true
 });
