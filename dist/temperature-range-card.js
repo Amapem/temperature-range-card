@@ -1,5 +1,5 @@
 /**
- * Temperature Range Card (Style iOS Weather / Apple Weather)
+ * Temperature History & Range Card (Style iOS Weather / Apple Weather)
  * v4.0.0 (Global Release) :
  * - Internationalisation native complète (i18n) dans 6 langues :
  *   - English (en), Français (fr), Deutsch (de), Español (es), Italiano (it), Nederlands (nl)
@@ -2373,11 +2373,16 @@ class TemperatureRangeCard extends HTMLElement {
   }
 }
 
-customElements.define("temperature-range-card", TemperatureRangeCard);
+if (!customElements.get("temperature-range-card")) {
+  customElements.define("temperature-range-card", TemperatureRangeCard);
+}
+if (!customElements.get("temperature-history-range-card")) {
+  customElements.define("temperature-history-range-card", TemperatureRangeCard);
+}
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "temperature-range-card",
-  name: "Temperature Range Card",
-  description: "Barres d'amplitudes thermiques Min - Max style Apple Weather avec statistiques longues durées configurables (jours, semaines, mois), échelle graduée et éditeur visuel",
+  name: "Temperature History & Range Card",
+  description: "Visualisez et comparez l'historique thermique (amplitudes Min-Max) de vos capteurs sur plusieurs jours, semaines ou mois avec l'élégance Apple Weather.",
   preview: true
 });

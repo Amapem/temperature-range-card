@@ -1,20 +1,23 @@
-# Temperature Range Card for Home Assistant
+# 🌡️ Temperature History & Range Card for Home Assistant
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
 [![GitHub release](https://img.shields.io/github/v/release/Amapem/temperature-range-card)](https://github.com/Amapem/temperature-range-card/releases)
 
-A modern, iOS / Apple Weather styled temperature range card for Home Assistant. Displays daily, weekly, and monthly minimum and maximum temperature amplitude bars with real sensor historical data, continuous temperature scale alignment, customizable bar thickness, and a visual UI editor with drag-and-drop reordering.
+A modern, iOS / Apple Weather styled temperature history and range card for Home Assistant. Easily track, compare, and visualize historical temperatures across multiple sensors over flexible periods (days, weeks, or months) with daily/weekly/monthly Min & Max amplitude bars, continuous temperature scale alignment, customizable bar thickness, and a visual UI editor with drag-and-drop reordering.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Amapem/temperature-range-card/main/images/preview_7days.png" alt="Temperature Range Card - 7 Days View" width="650">
+  <img src="https://raw.githubusercontent.com/Amapem/temperature-range-card/main/images/preview_7days.png" alt="Temperature History & Range Card - 7 Days View" width="650">
   <br><br>
-  <img src="https://raw.githubusercontent.com/Amapem/temperature-range-card/main/images/preview_24months.png" alt="Temperature Range Card - 24 Months Seasonal Overview" width="650">
+  <img src="https://raw.githubusercontent.com/Amapem/temperature-range-card/main/images/preview_24months.png" alt="Temperature History & Range Card - 24 Months Seasonal Overview" width="650">
 </p>
 
 ---
 
 ## Features
 
+- 📊 **Multi-Sensor Temperature History & Trend Analysis**:
+  - Easily switch between rooms and sensors (e.g. Living Room, Bedroom, Outdoor) from an interactive dropdown menu.
+  - Track thermal minimum, maximum, and amplitude shifts over **days**, **weeks**, or up to **24 months** to observe seasonal waves.
 - 🌍 **Full Native Multi-Language Support (i18n)**:
   - Automatically localized according to the user's Home Assistant language.
   - 6 languages supported out of the box: **English (`en`)**, **Français (`fr`)**, **Deutsch (`de`)**, **Español (`es`)**, **Italiano (`it`)**, and **Nederlands (`nl`)**.
@@ -48,7 +51,7 @@ A modern, iOS / Apple Weather styled temperature range card for Home Assistant. 
 2. Click the three dots in the top-right corner and select **Custom repositories**.
 3. Add the repository URL: `https://github.com/Amapem/temperature-range-card`
 4. Set category to **Lovelace (Dashboard)**.
-5. Search for **Temperature Range Card** and click **Download**.
+5. Search for **Temperature History & Range Card** and click **Download**.
 
 ---
 
@@ -88,7 +91,7 @@ entities:
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `type` | string | **Required** | `custom:temperature-range-card` |
+| `type` | string | **Required** | `custom:temperature-range-card` (or alias `custom:temperature-history-range-card`) |
 | `entities` | list | `[]` | List of sensor objects (`entity` and `name`) |
 | `title` | string | `Amplitudes & Comparatif Journalier` | Header title of the card |
 | `default_entity` | string | First entity in list | Entity selected when the card is first loaded |
