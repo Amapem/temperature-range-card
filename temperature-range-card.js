@@ -1,5 +1,8 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
+ * v4.1.1 :
+ * - Suppression de l'alias de balise redondant pour préserver un nom unique strict ('custom:temperature-range-card')
+ *   et éliminer toute erreur DOMException / CustomElementRegistry dans Lovelace
  * v4.1.0 :
  * - Affichage élégant de la température actuelle en direct (show_current) façon Apple Weather
  * - Disposition d'en-tête responsive sur 2 niveaux avec badge de température grand format
@@ -1496,7 +1499,9 @@ class TemperatureRangeCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("temperature-range-card-editor", TemperatureRangeCardEditor);
+if (!customElements.get("temperature-range-card-editor")) {
+  customElements.define("temperature-range-card-editor", TemperatureRangeCardEditor);
+}
 
 // =============================================================================
 // CARTE PRINCIPALE (TemperatureRangeCard)
@@ -2547,9 +2552,6 @@ class TemperatureRangeCard extends HTMLElement {
 
 if (!customElements.get("temperature-range-card")) {
   customElements.define("temperature-range-card", TemperatureRangeCard);
-}
-if (!customElements.get("temperature-history-range-card")) {
-  customElements.define("temperature-history-range-card", TemperatureRangeCard);
 }
 window.customCards = window.customCards || [];
 window.customCards.push({

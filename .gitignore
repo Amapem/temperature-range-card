@@ -3,3 +3,8 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+.ssh/
+scratch*
+*.tmp
+AGENTS.md
+GEMINI.md

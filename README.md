@@ -96,7 +96,7 @@ entities:
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `type` | string | **Required** | `custom:temperature-range-card` (or alias `custom:temperature-history-range-card`) |
+| `type` | string | **Required** | `custom:temperature-range-card` |
 | `entities` | list | `[]` | List of sensor objects (`entity` and `name`) |
 | `title` | string | `Amplitudes & Comparatif Journalier` | Header title of the card |
 | `default_entity` | string | First entity in list | Entity selected when the card is first loaded |
