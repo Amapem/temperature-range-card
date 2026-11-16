@@ -1905,7 +1905,7 @@ class TemperatureRangeCard extends HTMLElement {
             label: label,
             min: stat.min,
             max: stat.max,
-            sameTimeVal: null,
+            sameTimeVal: idx === 0 ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
             isToday: idx === 0
           };
         });
@@ -1932,12 +1932,13 @@ class TemperatureRangeCard extends HTMLElement {
           }
         }
         const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
         rowsList = sortedKeys.map((k, idx) => ({
           label: monthsMap[k].label,
           min: monthsMap[k].min,
           max: monthsMap[k].max,
-          sameTimeVal: null,
-          isToday: idx === 0
+          sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+          isToday: k === currentMonthKey
         }));
       }
 
