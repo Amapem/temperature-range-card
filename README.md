@@ -18,6 +18,10 @@ A modern, iOS / Apple Weather styled temperature history and range card for Home
 - 📊 **Multi-Sensor Temperature History & Trend Analysis**:
   - Easily switch between rooms and sensors (e.g. Living Room, Bedroom, Outdoor) from an interactive dropdown menu.
   - Track thermal minimum, maximum, and amplitude shifts over **days**, **weeks**, or up to **24 months** to observe seasonal waves.
+- 🌡️ **Real-Time Current Temperature Badge (`show_current`)**:
+  - Optional Apple Weather styled header displaying the current temperature in large typography alongside the card title.
+  - Automatically adapts to a clean two-tier responsive layout with dedicated room & period dropdowns.
+  - Toggleable on/off directly from the visual Lovelace editor.
 - 🌍 **Full Native Multi-Language Support (i18n)**:
   - Automatically localized according to the user's Home Assistant language.
   - 6 languages supported out of the box: **English (`en`)**, **Français (`fr`)**, **Deutsch (`de`)**, **Español (`es`)**, **Italiano (`it`)**, and **Nederlands (`nl`)**.
@@ -28,11 +32,12 @@ A modern, iOS / Apple Weather styled temperature history and range card for Home
 - 📏 **Fully Customizable Bar Thickness**:
   - `bar_height`: Adjust track height from `6px` to `60px` (default `18px`). Includes quick presets (`10px`, `14px`, `18px`, `24px`, `28px`, `34px`) and adaptive dot sizing.
 - 📐 **Graduated Temperature Scale**: Min, intermediate ticks, and Max markers aligned with discrete vertical guide lines.
-- ⏱️ **Dynamic Custom Periods (`<N>d`, `<N>w`, `<N>m`)**:
+- ⏱️ **Dynamic Custom Periods (`<N>d`, `<N>w`, `<N>m`, `<N>y`)**:
   - Days: `1d`, `2d`, `7d`, `10d`, `14d`, `15d`, `30d`...
   - Weeks: `1w`, `2w`, `4w`, `8w`, `10w`, `20w`... (ISO week grouping)
   - Months: `1m`, `3m`, `6m`, `12m`, `24m`... (Multi-month overview)
-  - Chronological auto-sorting (Days → Weeks → Months).
+  - Years: `1y`, `2y`, `3y`, `5y`... (Annual comparison across historical years)
+  - Chronological auto-sorting (Days → Weeks → Months → Years).
 - 🎛️ **Full Visual UI Editor (Lovelace)**:
   - **Ultra-compact sensor list**: 28px collapsible rows displaying clean custom names.
   - **Native Drag & Drop (`≡`)**: Effortlessly reorder sensors with the drag handle.
@@ -97,6 +102,7 @@ entities:
 | `default_entity` | string | First entity in list | Entity selected when the card is first loaded |
 | `default_period` | string | `10d` | Initial period view (any valid period, e.g. `10d`, `15d`, `20w`, `6m`) |
 | `show_scale` | boolean | `true` | Displays the graduated min/intermediate/max temperature scale |
+| `show_current` | boolean | `false` | Displays the current real-time temperature badge with a two-tier Apple Weather header layout |
 | `gradient_mode` | string | `global` | `global` (Apple Weather continuous scale) or `local` (0%-100% per bar) |
 | `bar_height` | number | `18` | Bar thickness in pixels (from 6 to 60 px) |
 | `available_periods` | list | `[10d, 20d, 30d, 20w, 12m]` | List of allowed period options (`<N>d`, `<N>w`, `<N>m`) |

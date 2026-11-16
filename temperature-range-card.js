@@ -1,11 +1,17 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
+ * v4.1.0 :
+ * - Affichage élégant de la température actuelle en direct (show_current) façon Apple Weather
+ * - Disposition d'en-tête responsive sur 2 niveaux avec badge de température grand format
+ * - Option activable/désactivable directement dans l'éditeur visuel Lovelace
+ * - Prise en charge des périodes annuelles (<N>y, ex: 1y, 2y, 3y, 5y) avec regroupement par année civile
+ * - Tri chronologique étendu (Jours -> Semaines -> Mois -> Années)
  * v4.0.0 (Global Release) :
  * - Internationalisation native complète (i18n) dans 6 langues :
  *   - English (en), Français (fr), Deutsch (de), Español (es), Italiano (it), Nederlands (nl)
  *   - Détection automatique de la langue utilisateur via Home Assistant (hass.locale.language)
  *   - Formatage des dates dynamique multilingue (toLocaleDateString avec la locale active)
- * - Typographie et espacements adaptatifs selon l\'épaisseur des barres (gain jusqu\'à 45% en hauteur)
+ * - Typographie et espacements adaptatifs selon l'épaisseur des barres (gain jusqu'à 45% en hauteur)
  * - En-têtes de colonnes clairs et explicites MIN et MAX au-dessus des températures
  * - Dégradé Continu Global (Style Apple Weather) avec alignement vertical parfait
  * - Épaisseur des barres 100% personnalisable et libre (bar_height)
@@ -53,7 +59,8 @@ function parsePeriod(periodStr) {
   const str = String(periodStr).trim().toLowerCase();
   if (str === "week") return { count: 20, unit: "w", raw: "20w" };
   if (str === "month") return { count: 12, unit: "m", raw: "12m" };
-  const match = str.match(/^(\d+)([dwm])$/);
+  if (str === "year") return { count: 1, unit: "y", raw: "1y" };
+  const match = str.match(/^(\d+)([dwmy])$/);
   if (match) {
     return {
       count: parseInt(match[1], 10),
@@ -88,6 +95,11 @@ const TRANSLATIONS = {
     period_w_plural: "{count} weeks",
     period_m_single: "1 month",
     period_m_plural: "{count} months",
+    period_y_single: "1 year",
+    period_y_plural: "{count} years",
+    subtitle_years: "Annual summary for the last {count} years",
+    subtitle_year_single: "Annual summary for the current year",
+    in_progress: "Current",
     general_settings: "⚙️ General Settings",
     card_title_label: "Card title",
     card_title_placeholder: "Ex: Temperature Overview",
@@ -96,6 +108,7 @@ const TRANSLATIONS = {
     no_sensor_option: "(No sensor)",
     bar_style_section: "📊 Bar Style & Display",
     show_scale_label: "Display graduated scale above bars (Min, Ticks, Max)",
+    show_current_label: "Display real-time current temperature in header",
     gradient_style_label: "Bar gradient style",
     gradient_global: "🍏 Continuous global scale (Apple Weather style - vertical alignment)",
     gradient_local: "🌈 Relative amplitude per bar (Each bar 0% to 100%)",
@@ -146,6 +159,11 @@ const TRANSLATIONS = {
     period_w_plural: "{count} semaines",
     period_m_single: "1 mois",
     period_m_plural: "{count} mois",
+    period_y_single: "1 an",
+    period_y_plural: "{count} ans",
+    subtitle_years: "Synthèse annuelle des {count} dernières années",
+    subtitle_year_single: "Synthèse annuelle de l'année en cours",
+    in_progress: "En cours",
     general_settings: "⚙️ Paramètres Généraux",
     card_title_label: "Titre de la carte",
     card_title_placeholder: "Ex: Comparatif & Amplitudes Thermiques",
@@ -154,6 +172,7 @@ const TRANSLATIONS = {
     no_sensor_option: "(Aucun capteur)",
     bar_style_section: "📊 Style & Affichage des Barres",
     show_scale_label: "Afficher l'échelle graduée au-dessus des barres (Min, Repères, Max)",
+    show_current_label: "Afficher la température actuelle en direct dans l'en-tête",
     gradient_style_label: "Style de dégradé des barres",
     gradient_global: "🍏 Échelle continue globale (Style Apple Weather - alignement vertical)",
     gradient_local: "🌈 Amplitude relative par barre (Chaque barre de 0% à 100%)",
@@ -204,6 +223,11 @@ const TRANSLATIONS = {
     period_w_plural: "{count} Wochen",
     period_m_single: "1 Monat",
     period_m_plural: "{count} Monate",
+    period_y_single: "1 Jahr",
+    period_y_plural: "{count} Jahre",
+    subtitle_years: "Jahresübersicht der letzten {count} Jahre",
+    subtitle_year_single: "Jahresübersicht des aktuellen Jahres",
+    in_progress: "Laufend",
     general_settings: "⚙️ Allgemeine Einstellungen",
     card_title_label: "Kartentitel",
     card_title_placeholder: "Z.B.: Temperaturübersicht",
@@ -212,6 +236,7 @@ const TRANSLATIONS = {
     no_sensor_option: "(Kein Sensor)",
     bar_style_section: "📊 Balkenstil & Anzeige",
     show_scale_label: "Graduierte Skala über den Balken anzeigen (Min, Markierungen, Max)",
+    show_current_label: "Aktuelle Echtzeit-Temperatur im Header anzeigen",
     gradient_style_label: "Balken-Farbverlauf",
     gradient_global: "🍏 Durchgehende globale Skala (Apple Weather Stil - vertikale Ausrichtung)",
     gradient_local: "🌈 Relativer Verlauf pro Balken (Jeder Balken von 0% bis 100%)",
@@ -262,6 +287,11 @@ const TRANSLATIONS = {
     period_w_plural: "{count} semanas",
     period_m_single: "1 mes",
     period_m_plural: "{count} meses",
+    period_y_single: "1 año",
+    period_y_plural: "{count} años",
+    subtitle_years: "Resumen anual de los últimos {count} años",
+    subtitle_year_single: "Resumen anual del año en curso",
+    in_progress: "En curso",
     general_settings: "⚙️ Configuración General",
     card_title_label: "Título de la tarjeta",
     card_title_placeholder: "Ej: Resumen Térmico",
@@ -270,6 +300,7 @@ const TRANSLATIONS = {
     no_sensor_option: "(Sin sensor)",
     bar_style_section: "📊 Estilo y Visualización de Barras",
     show_scale_label: "Mostrar escala graduada sobre las barras (Mín, Marcas, Máx)",
+    show_current_label: "Mostrar temperatura actual en tiempo real en el encabezado",
     gradient_style_label: "Estilo de gradiente",
     gradient_global: "🍏 Escala continua global (Estilo Apple Weather - alineación vertical)",
     gradient_local: "🌈 Amplitud relativa por barra (Cada barra de 0% a 100%)",
@@ -320,6 +351,11 @@ const TRANSLATIONS = {
     period_w_plural: "{count} settimane",
     period_m_single: "1 mese",
     period_m_plural: "{count} mesi",
+    period_y_single: "1 anno",
+    period_y_plural: "{count} anni",
+    subtitle_years: "Riepilogo annuale degli ultimi {count} anni",
+    subtitle_year_single: "Riepilogo annuale dell'anno in corso",
+    in_progress: "In corso",
     general_settings: "⚙️ Impostazioni Generali",
     card_title_label: "Titolo della scheda",
     card_title_placeholder: "Es: Panoramica Termica",
@@ -328,6 +364,7 @@ const TRANSLATIONS = {
     no_sensor_option: "(Nessun sensore)",
     bar_style_section: "📊 Stile e Visualizzazione Barre",
     show_scale_label: "Mostra scala graduata sopra le barre (Min, Tacche, Max)",
+    show_current_label: "Mostra la temperatura attuale in tempo reale nell'intestazione",
     gradient_style_label: "Stile sfumatura barre",
     gradient_global: "🍏 Scala continua globale (Stile Apple Weather - allineamento verticale)",
     gradient_local: "🌈 Ampiezza relativa per barra (Ogni barra da 0% a 100%)",
@@ -378,6 +415,11 @@ const TRANSLATIONS = {
     period_w_plural: "{count} weken",
     period_m_single: "1 maand",
     period_m_plural: "{count} maanden",
+    period_y_single: "1 jaar",
+    period_y_plural: "{count} jaar",
+    subtitle_years: "Jaaroverzicht voor de afgelopen {count} jaar",
+    subtitle_year_single: "Jaaroverzicht voor het huidige jaar",
+    in_progress: "Lopend",
     general_settings: "⚙️ Algemene Instellingen",
     card_title_label: "Kaarttitel",
     card_title_placeholder: "Bijv.: Temperatuuroverzicht",
@@ -386,6 +428,7 @@ const TRANSLATIONS = {
     no_sensor_option: "(Geen sensor)",
     bar_style_section: "📊 Balkstijl & Weergave",
     show_scale_label: "Schaalverdeling boven balken weergeven (Min, Markeringen, Max)",
+    show_current_label: "Huidige realtime temperatuur in koptekst weergeven",
     gradient_style_label: "Balkverloopstijl",
     gradient_global: "🍏 Doorlopende globale schaal (Apple Weather stijl - verticale uitlijning)",
     gradient_local: "🌈 Relatief verloop per balk (Elke balk van 0% tot 100%)",
@@ -438,7 +481,7 @@ function formatPeriodLabel(periodStr, hass) {
   const p = parsePeriod(periodStr);
   if (!p) return periodStr;
   const count = p.count;
-  const icon = p.unit === "d" ? "📅 " : "🗓️ ";
+  const icon = p.unit === "d" ? "📅 " : (p.unit === "y" ? "📆 " : "🗓️ ");
   if (p.unit === "d") {
     const lbl = count === 1 ? localize("period_d_single", hass, { count }) : localize("period_d_plural", hass, { count });
     return `${icon}${lbl}`;
@@ -448,6 +491,9 @@ function formatPeriodLabel(periodStr, hass) {
   } else if (p.unit === "m") {
     const lbl = count === 1 ? localize("period_m_single", hass, { count }) : localize("period_m_plural", hass, { count });
     return `${icon}${lbl}`;
+  } else if (p.unit === "y") {
+    const lbl = count === 1 ? localize("period_y_single", hass, { count }) : localize("period_y_plural", hass, { count });
+    return `${icon}${lbl}`;
   }
   return periodStr;
 }
@@ -455,7 +501,7 @@ function formatPeriodLabel(periodStr, hass) {
 
 function sortPeriods(periodList) {
   if (!Array.isArray(periodList)) return [];
-  const unitOrder = { d: 1, w: 2, m: 3 };
+  const unitOrder = { d: 1, w: 2, m: 3, y: 4 };
   return [...periodList].sort((a, b) => {
     const pa = parsePeriod(a);
     const pb = parsePeriod(b);
@@ -486,6 +532,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
+      show_current: false,
       gradient_mode: "global",
       bar_height: 18,
       available_periods: ["10d", "20d", "30d", "20w", "12m"],
@@ -546,13 +593,14 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
     const entities = this._config.entities || [];
     const showScale = this._config.show_scale !== false;
+    const showCurrent = this._config.show_current === true;
     const gradientMode = (this._config.gradient_mode === "local") ? "local" : "global";
     const barHeight = Math.max(6, Math.min(60, parseInt(this._config.bar_height, 10) || 18));
     const availablePeriods = sortPeriods(this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"]);
     const defaultPeriod = this._config.default_period || availablePeriods[0] || "10d";
     const defaultEntity = this._config.default_entity || (entities[0] ? entities[0].entity : "");
 
-    const commonPresets = sortPeriods(["2d", "7d", "10d", "14d", "15d", "20d", "30d", "1w", "4w", "8w", "10w", "20w", "3m", "6m", "12m", "24m"]);
+    const commonPresets = sortPeriods(["2d", "7d", "10d", "14d", "15d", "20d", "30d", "1w", "4w", "8w", "10w", "20w", "3m", "6m", "12m", "24m", "1y", "2y", "3y", "5y"]);
 
     const entitiesHtml = entities.map((item, index) => {
       const isExpanded = this._expandedSet && this._expandedSet.has(index);
@@ -1016,6 +1064,14 @@ class TemperatureRangeCardEditor extends HTMLElement {
           </div>
 
           <div class="form-group" style="margin-top: 6px;">
+            <label class="switch-container">
+              <input type="checkbox" id="current-temp-toggle" ${showCurrent ? "checked" : ""}>
+              <span class="switch-slider"></span>
+              <span>${localize("show_current_label", this._hass)}</span>
+            </label>
+          </div>
+
+          <div class="form-group" style="margin-top: 6px;">
             <label class="form-label">${localize("gradient_style_label", this._hass)}</label>
             <select id="gradient-mode-select" class="form-select">
               <option value="global" ${gradientMode === "global" ? "selected" : ""}>${localize("gradient_global", this._hass)}</option>
@@ -1125,6 +1181,14 @@ class TemperatureRangeCardEditor extends HTMLElement {
     if (scaleToggle) {
       scaleToggle.addEventListener("change", (e) => {
         this._config.show_scale = e.target.checked;
+        this._fireConfigChanged();
+      });
+    }
+
+    const currentToggle = this.shadowRoot.getElementById("current-temp-toggle");
+    if (currentToggle) {
+      currentToggle.addEventListener("change", (e) => {
+        this._config.show_current = e.target.checked;
         this._fireConfigChanged();
       });
     }
@@ -1449,6 +1513,7 @@ class TemperatureRangeCard extends HTMLElement {
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
+      show_current: false,
       gradient_mode: "global",
       bar_height: 18,
       available_periods: ["10d", "20d", "30d", "20w", "12m"],
@@ -1460,6 +1525,7 @@ class TemperatureRangeCard extends HTMLElement {
     this.config = Object.assign({
       title: "Amplitudes & Comparatif Journalier",
       show_scale: true,
+      show_current: false,
       default_period: "10d",
       gradient_mode: "global",
       bar_height: 18,
@@ -1585,6 +1651,18 @@ class TemperatureRangeCard extends HTMLElement {
         });
         this._history = [];
         this._stats = statsRes[this._selectedEntity] || [];
+
+      } else if (unit === "y") {
+        // Fetch monthly statistics for count * 366 + 35 days to aggregate annual min/max
+        const statsStart = new Date(now - ((count * 366 + 35) * 24 * 3600 * 1000)).toISOString();
+        const statsRes = await this._hass.callWS({
+          type: "recorder/statistics_during_period",
+          start_time: statsStart,
+          statistic_ids: statsIds,
+          period: "month"
+        });
+        this._history = [];
+        this._stats = statsRes[this._selectedEntity] || [];
       }
 
       this._loading = false;
@@ -1664,6 +1742,10 @@ class TemperatureRangeCard extends HTMLElement {
 
     const cur = this._hass.states[this._selectedEntity];
     const unitMeasure = cur ? (cur.attributes.unit_of_measurement || "°C") : "°C";
+    let currentTempValue = null;
+    if (cur && cur.state !== undefined && cur.state !== null && !isNaN(parseFloat(cur.state))) {
+      currentTempValue = parseFloat(cur.state).toFixed(1);
+    }
 
     const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
@@ -1856,6 +1938,37 @@ class TemperatureRangeCard extends HTMLElement {
           max: monthsMap[k].max,
           sameTimeVal: null,
           isToday: idx === 0
+        }));
+      }
+
+    } else if (unit === "y") {
+      subtitleHtml = count === 1
+        ? `<span>${localize("subtitle_year_single", this._hass)}</span>`
+        : `<span>${localize("subtitle_years", this._hass, { count })}</span>`;
+      if (this._stats && this._stats.length) {
+        const yearsMap = {};
+        for (const stat of this._stats) {
+          const dt = new Date(stat.start);
+          const yKey = String(dt.getFullYear());
+          if (!yearsMap[yKey]) {
+            yearsMap[yKey] = { label: yKey, min: stat.min, max: stat.max };
+          } else {
+            if (stat.min !== null && (yearsMap[yKey].min === null || stat.min < yearsMap[yKey].min)) {
+              yearsMap[yKey].min = stat.min;
+            }
+            if (stat.max !== null && (yearsMap[yKey].max === null || stat.max > yearsMap[yKey].max)) {
+              yearsMap[yKey].max = stat.max;
+            }
+          }
+        }
+        const sortedKeys = Object.keys(yearsMap).sort().reverse().slice(0, count);
+        const currentYearStr = String(new Date().getFullYear());
+        rowsList = sortedKeys.map((k, idx) => ({
+          label: k === currentYearStr ? `${k} (${localize("in_progress", this._hass)})` : k,
+          min: yearsMap[k].min,
+          max: yearsMap[k].max,
+          sameTimeVal: k === currentYearStr ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+          isToday: k === currentYearStr
         }));
       }
     }
@@ -2053,6 +2166,31 @@ class TemperatureRangeCard extends HTMLElement {
       </div>
     `;
 
+    const showCurrent = this.config.show_current === true;
+    let headerHtml = "";
+    if (showCurrent) {
+      headerHtml = `
+        <div class="header-container-two-rows">
+          <div class="header-top-row">
+            <div class="card-header">${this.config.title || "Amplitudes Journalières"}</div>
+            <div class="current-temp-badge" title="${localize("current_temp", this._hass)}">
+              <span class="current-temp-num">${currentTempValue !== null ? currentTempValue : "--"}</span><span class="current-temp-unit">${unitMeasure}</span>
+            </div>
+          </div>
+          <div class="header-selectors-row">
+            ${selectorHtml}
+          </div>
+        </div>
+      `;
+    } else {
+      headerHtml = `
+        <div class="header-row">
+          <div class="card-header">${this.config.title || "Amplitudes Journalières"}</div>
+          ${selectorHtml}
+        </div>
+      `;
+    }
+
     this.shadowRoot.innerHTML = `
       <style>
         :host {
@@ -2074,6 +2212,42 @@ class TemperatureRangeCard extends HTMLElement {
           gap: 12px;
           margin-bottom: 12px;
           flex-wrap: wrap;
+        }
+        .header-container-two-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+        .header-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 12px;
+        }
+        .current-temp-badge {
+          display: flex;
+          align-items: baseline;
+          font-size: 26px;
+          font-weight: 700;
+          color: var(--primary-text-color, #ffffff);
+          letter-spacing: -0.5px;
+          line-height: 1;
+        }
+        .current-temp-num {
+          font-variant-numeric: tabular-nums;
+        }
+        .current-temp-unit {
+          font-size: 15px;
+          font-weight: 500;
+          color: var(--secondary-text-color, #9e9e9e);
+          margin-left: 2px;
+        }
+        .header-selectors-row {
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          width: 100%;
         }
         .card-header {
           font-size: 20px !important;
@@ -2348,10 +2522,7 @@ class TemperatureRangeCard extends HTMLElement {
         }
       </style>
       <ha-card style="--trc-bar-height: ${barHeight}px; --trc-dot-today-size: ${dotTodaySize}px; --trc-dot-past-size: ${dotPastSize}px; --trc-font-size: ${fontSize}px; --trc-temp-font-size: ${tempFontSize}px; --trc-row-gap: ${rowGap}px; --trc-temp-margin: ${tempMargin}px; --trc-day-width: ${dayWidth}px; --trc-temp-width: ${tempWidth}px; --trc-spacer-left: ${spacerLeft}px; --trc-spacer-right: ${spacerRight}px; --trc-header-font-size: ${headerFontSize}px;">
-        <div class="header-row">
-          <div class="card-header">${this.config.title || "Amplitudes Journalières"}</div>
-          ${selectorHtml}
-        </div>
+        ${headerHtml}
         <div class="subtitle">
           ${subtitleHtml}
         </div>
