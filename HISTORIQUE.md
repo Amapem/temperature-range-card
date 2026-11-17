@@ -72,17 +72,18 @@ Ce document retrace l'historique complet de conception, des choix d'architecture
 ---
 
 ### 🏷️ Version 4.1.3 — Correctifs Écran Noir Lovelace, Assainissement `[object Object]`, Épuration & Synthèses Dynamiques (17/11/2026)
-* 📊 **Fiabilisation des vues Semaines, Mois et Années pour les nouveaux capteurs & consignes** :
-  * **Constat initial (Retour utilisateur consigne thermostat)** :
-    * Sur un nouveau capteur de consigne de thermostat, l'affichage en jour fonctionnait parfaitement mais les vues en semaines (10 semaines), mois ou années restaient bloquées sur le texte littéral brut `${localize("loading", this._hass)}`.
+* 📊 **Fiabilisation des vues Semaines, Mois et Années pour tous les capteurs & consignes** :
+  * **Constat initial (Retour utilisateur consigne thermostat & sondes de température)** :
+    * Sur un nouveau capteur de consigne de thermostat (ou toute autre sonde), l'affichage en jour fonctionnait mais les vues en semaines, mois et années n'affichaient qu'une unique ligne ou restaient bloquées sur le texte littéral brut `${localize("loading", this._hass)}`.
   * **Causes racines identifiées** :
     1. **Bogue d'interpolation JavaScript** : Le fallback de `rows-container` utilisait des apostrophes simples `'` au lieu de backticks `` ` ``, affichant la chaîne de template littérale au lieu du message localisé.
-    2. **Dépendance exclusive aux statistiques LTS (`recorder/statistics_during_period`)** : Pour les semaines, mois et années, la carte ne construisait des lignes que si l'API recorder renvoyait un tableau non vide. Or, pour un nouveau capteur ou une entité sans l'attribut `state_class: measurement` (comme de nombreuses consignes de thermostat ou template sensors), Home Assistant ne calcule aucune statistique à long terme, retournant un tableau vide !
-    3. **Absence de la période courante en direct** : Même si le capteur avait une valeur actuelle valide (ex: 20°C de consigne), la semaine en cours, le mois en cours et l'année en cours n'étaient pas générés si aucune statistique historique fermée n'était présente dans la base.
+    2. **Commande WebSocket invalide `history/period`** : L'API WebSocket de Home Assistant n'accepte que `history/history_during_period` (`history/period` est réservé à l'API REST). L'appel échouait systématiquement (`unknown_command`), faisant échouer `Promise.all` et vidant `this._stats` pour toutes les sondes.
+    3. **Écrasement à 1 ligne unique** : L'initialisation inconditionnelle de la ligne courante en dehors du test de présence de statistiques remplissait la carte avec une seule ligne lorsque `this._stats` était vide.
+    4. **Capteurs sans attribut `state_class: measurement`** : Pour les entités sans `state_class` (comme de nombreuses consignes de thermostat), Home Assistant ne conserve aucune statistique à long terme (LTS) et ne stocke que quelques jours d'historique d'état brut.
   * **Solution technique & Optimisations** :
-    1. **Injection proactive de la période en cours** : Pour les semaines ISO, mois et années, la carte intègre systématiquement la période actuelle en direct avec la température ou consigne temps réel (`cur.state`), garantissant que la ligne en cours s'affiche immédiatement même pour un capteur créé il y a 5 minutes.
-    2. **Agrégation journalière pour les semaines ISO** : Les requêtes hebdomadaires s'appuient désormais sur les statistiques journalières (`period: "day"`) et l'historique brut des 7 derniers jours (`history/period`), universellement supportés et agrégés côté frontend par numéro de semaine ISO.
-    3. **Notification explicite d'absence de LTS** : Remplacement du chargement infini par un message propre d'information guidant l'utilisateur sur la nécessité de l'attribut `state_class: measurement` dans Home Assistant pour l'historique étendu.
+    1. **Correction des requêtes WebSocket LTS (`period: "week"` et `period: "month"`)** : Utilisation des agrégations natives stables du recorder Home Assistant sans risque de rejet.
+    2. **Fallback intelligent sur l'historique brut (`history/history_during_period`)** : Si un capteur ne dispose pas de statistiques LTS (ex: consigne thermostat), la carte interroge de manière transparente l'historique brut récent (jusqu'à 31 jours) et l'agrège par semaine ou mois.
+    3. **Gestion propre des capteurs sans données** : Si aucune donnée n'existe, la carte affiche un message explicatif bienveillant (`no_stats_notice`) rappelant le rôle de l'attribut `state_class: measurement`, au lieu d'une ligne unique vide ou d'un blocage.
 * 🎛️ **Épuration de l'éditeur visuel & Mémorisation de session cloisonnée par carte** :
   * **Constat & Choix utilisateur** :
     * L'utilisateur souhaite conserver la dernière vue consultée lors du rechargement de la page (rester sur le capteur et la durée choisis pendant la session).

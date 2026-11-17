@@ -1867,51 +1867,67 @@ class TemperatureRangeCard extends HTMLElement {
         this._stats = statsRes[this._selectedEntity] || [];
 
       } else if (unit === "w") {
-        // Fetch daily statistics to reliably aggregate ISO weeks across all Home Assistant versions
-        const statsStart = new Date(now - ((count * 7 + 14) * 24 * 3600 * 1000)).toISOString();
-        const statsPromise = this._hass.callWS({
+        // Récupération des statistiques hebdomadaires (LTS)
+        const statsStart = new Date(now - ((count + 2) * 7 * 24 * 3600 * 1000)).toISOString();
+        const statsRes = await this._hass.callWS({
           type: "recorder/statistics_during_period",
           start_time: statsStart,
           statistic_ids: statsIds,
-          period: "day"
+          period: "week"
         });
-        const histStart = new Date(now - (7 * 24 * 3600 * 1000)).toISOString();
-        const histPromise = this._hass.callWS({
-          type: "history/period",
-          start_time: histStart,
-          end_time: new Date(now).toISOString(),
-          entity_ids: [this._selectedEntity],
-          minimal_response: true,
-          no_attributes: true
-        });
-        const [statsRes, histRes] = await Promise.all([statsPromise, histPromise]);
         this._stats = statsRes[this._selectedEntity] || [];
-        this._history = histRes[this._selectedEntity] || [];
+
+        // Fallback historique brut si aucune statistique LTS n'est disponible (ex: consigne thermostat sans state_class)
+        if (!this._stats.length) {
+          try {
+            const histStart = new Date(now - (31 * 24 * 3600 * 1000)).toISOString();
+            const histRes = await this._hass.callWS({
+              type: "history/history_during_period",
+              start_time: histStart,
+              entity_ids: [this._selectedEntity],
+              minimal_response: true,
+              no_attributes: true
+            });
+            this._history = histRes[this._selectedEntity] || [];
+          } catch (_) {
+            this._history = [];
+          }
+        } else {
+          this._history = [];
+        }
 
       } else if (unit === "m") {
-        // Fetch daily statistics for count * 32 days to display count full months
+        // Récupération des statistiques mensuelles (LTS)
         const statsStart = new Date(now - ((count * 32 + 10) * 24 * 3600 * 1000)).toISOString();
-        const statsPromise = this._hass.callWS({
+        const statsRes = await this._hass.callWS({
           type: "recorder/statistics_during_period",
           start_time: statsStart,
           statistic_ids: statsIds,
-          period: "day"
+          period: "month"
         });
-        const histStart = new Date(now - (7 * 24 * 3600 * 1000)).toISOString();
-        const histPromise = this._hass.callWS({
-          type: "history/period",
-          start_time: histStart,
-          end_time: new Date(now).toISOString(),
-          entity_ids: [this._selectedEntity],
-          minimal_response: true,
-          no_attributes: true
-        });
-        const [statsRes, histRes] = await Promise.all([statsPromise, histPromise]);
         this._stats = statsRes[this._selectedEntity] || [];
-        this._history = histRes[this._selectedEntity] || [];
+
+        // Fallback historique brut si aucune statistique LTS n'est disponible
+        if (!this._stats.length) {
+          try {
+            const histStart = new Date(now - (31 * 24 * 3600 * 1000)).toISOString();
+            const histRes = await this._hass.callWS({
+              type: "history/history_during_period",
+              start_time: histStart,
+              entity_ids: [this._selectedEntity],
+              minimal_response: true,
+              no_attributes: true
+            });
+            this._history = histRes[this._selectedEntity] || [];
+          } catch (_) {
+            this._history = [];
+          }
+        } else {
+          this._history = [];
+        }
 
       } else if (unit === "y") {
-        // Fetch monthly statistics for count * 366 + 35 days to aggregate annual min/max
+        // Récupération des statistiques mensuelles agrégées par année
         const statsStart = new Date(now - ((count * 366 + 35) * 24 * 3600 * 1000)).toISOString();
         const statsRes = await this._hass.callWS({
           type: "recorder/statistics_during_period",
@@ -1919,8 +1935,8 @@ class TemperatureRangeCard extends HTMLElement {
           statistic_ids: statsIds,
           period: "month"
         });
-        this._history = [];
         this._stats = statsRes[this._selectedEntity] || [];
+        this._history = [];
       }
 
       this._loading = false;
@@ -2166,28 +2182,32 @@ class TemperatureRangeCard extends HTMLElement {
 
     } else if (unit === "w") {
       subtitleHtml = `<span>Synthèse hebdomadaire des ${count} dernières semaines (Numéros de semaine ISO)</span>`;
-      const weeksMap = {};
+      const currentWeekNum = getISOWeekNumber(now);
 
       if (this._stats && this._stats.length) {
-        for (const stat of this._stats) {
-          const dt = new Date(stat.start);
-          const wNum = getISOWeekNumber(dt);
-          const yNum = dt.getFullYear();
-          const key = `${yNum}-W${String(wNum).padStart(2, "0")}`;
-          if (!weeksMap[key]) {
-            weeksMap[key] = { label: `Semaine ${wNum}`, wNum: wNum, min: stat.min, max: stat.max };
-          } else {
-            if (stat.min !== null && (weeksMap[key].min === null || stat.min < weeksMap[key].min)) {
-              weeksMap[key].min = stat.min;
-            }
-            if (stat.max !== null && (weeksMap[key].max === null || stat.max > weeksMap[key].max)) {
-              weeksMap[key].max = stat.max;
-            }
+        const sorted = [...this._stats].reverse().slice(0, count);
+        rowsList = sorted.map((stat, idx) => {
+          const sDate = new Date(stat.start + 86400000 * 2);
+          const wNum = getISOWeekNumber(sDate);
+          const isCurrent = idx === 0 || wNum === currentWeekNum;
+          const label = isCurrent ? `Sem. ${wNum} (Auj.)` : `Semaine ${wNum}`;
+          let minVal = stat.min;
+          let maxVal = stat.max;
+          if (isCurrent && currentTempValue !== null) {
+            const curVal = parseFloat(currentTempValue);
+            if (minVal === null || curVal < minVal) minVal = curVal;
+            if (maxVal === null || curVal > maxVal) maxVal = curVal;
           }
-        }
-      }
-
-      if (this._history && this._history.length) {
+          return {
+            label: label,
+            min: minVal,
+            max: maxVal,
+            sameTimeVal: isCurrent ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+            isToday: isCurrent
+          };
+        });
+      } else if (this._history && this._history.length) {
+        const weeksMap = {};
         for (const pt of this._history) {
           const val = parseFloat(pt.s);
           if (isNaN(val)) continue;
@@ -2198,40 +2218,38 @@ class TemperatureRangeCard extends HTMLElement {
           if (!weeksMap[key]) {
             weeksMap[key] = { label: `Semaine ${wNum}`, wNum: wNum, min: val, max: val };
           } else {
-            if (weeksMap[key].min === null || val < weeksMap[key].min) weeksMap[key].min = val;
-            if (weeksMap[key].max === null || val > weeksMap[key].max) weeksMap[key].max = val;
+            if (val < weeksMap[key].min) weeksMap[key].min = val;
+            if (val > weeksMap[key].max) weeksMap[key].max = val;
           }
         }
-      }
-
-      const currentWeekNum = getISOWeekNumber(now);
-      const currentWeekKey = `${now.getFullYear()}-W${String(currentWeekNum).padStart(2, "0")}`;
-      if (currentTempValue !== null) {
-        const curVal = parseFloat(currentTempValue);
-        if (!weeksMap[currentWeekKey]) {
-          weeksMap[currentWeekKey] = { label: `Sem. ${currentWeekNum} (Auj.)`, wNum: currentWeekNum, min: curVal, max: curVal };
-        } else {
-          weeksMap[currentWeekKey].label = `Sem. ${currentWeekNum} (Auj.)`;
-          if (weeksMap[currentWeekKey].min === null || curVal < weeksMap[currentWeekKey].min) weeksMap[currentWeekKey].min = curVal;
-          if (weeksMap[currentWeekKey].max === null || curVal > weeksMap[currentWeekKey].max) weeksMap[currentWeekKey].max = curVal;
+        const currentWeekKey = `${now.getFullYear()}-W${String(currentWeekNum).padStart(2, "0")}`;
+        if (currentTempValue !== null) {
+          const curVal = parseFloat(currentTempValue);
+          if (!weeksMap[currentWeekKey]) {
+            weeksMap[currentWeekKey] = { label: `Sem. ${currentWeekNum} (Auj.)`, wNum: currentWeekNum, min: curVal, max: curVal };
+          } else {
+            if (curVal < weeksMap[currentWeekKey].min) weeksMap[currentWeekKey].min = curVal;
+            if (curVal > weeksMap[currentWeekKey].max) weeksMap[currentWeekKey].max = curVal;
+          }
         }
+        const sortedKeys = Object.keys(weeksMap).sort().reverse().slice(0, count);
+        rowsList = sortedKeys.map(k => ({
+          label: k === currentWeekKey ? `Sem. ${weeksMap[k].wNum} (Auj.)` : `Semaine ${weeksMap[k].wNum}`,
+          min: weeksMap[k].min,
+          max: weeksMap[k].max,
+          sameTimeVal: k === currentWeekKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+          isToday: k === currentWeekKey
+        }));
       }
-
-      const sortedKeys = Object.keys(weeksMap).sort().reverse().slice(0, count);
-      rowsList = sortedKeys.map(k => ({
-        label: k === currentWeekKey ? `Sem. ${weeksMap[k].wNum} (Auj.)` : `Semaine ${weeksMap[k].wNum}`,
-        min: weeksMap[k].min,
-        max: weeksMap[k].max,
-        sameTimeVal: k === currentWeekKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-        isToday: k === currentWeekKey
-      }));
 
     } else if (unit === "m") {
       subtitleHtml = `<span>Synthèse mensuelle des ${count} derniers mois (Évolution des saisons & amplitudes)</span>`;
-      const monthsMap = {};
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
       if (this._stats && this._stats.length) {
+        const monthsMap = {};
         for (const stat of this._stats) {
-          const dt = new Date(stat.start);
+          const dt = new Date(stat.start + 86400000 * 5);
           const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
           let mName = dt.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
           mName = mName.charAt(0).toUpperCase() + mName.slice(1);
@@ -2246,9 +2264,27 @@ class TemperatureRangeCard extends HTMLElement {
             }
           }
         }
-      }
-
-      if (this._history && this._history.length) {
+        if (currentTempValue !== null) {
+          const curVal = parseFloat(currentTempValue);
+          let mName = now.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
+          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
+          if (!monthsMap[currentMonthKey]) {
+            monthsMap[currentMonthKey] = { label: mName, min: curVal, max: curVal };
+          } else {
+            if (monthsMap[currentMonthKey].min === null || curVal < monthsMap[currentMonthKey].min) monthsMap[currentMonthKey].min = curVal;
+            if (monthsMap[currentMonthKey].max === null || curVal > monthsMap[currentMonthKey].max) monthsMap[currentMonthKey].max = curVal;
+          }
+        }
+        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
+        rowsList = sortedKeys.map(k => ({
+          label: monthsMap[k].label,
+          min: monthsMap[k].min,
+          max: monthsMap[k].max,
+          sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+          isToday: k === currentMonthKey
+        }));
+      } else if (this._history && this._history.length) {
+        const monthsMap = {};
         for (const pt of this._history) {
           const val = parseFloat(pt.s);
           if (isNaN(val)) continue;
@@ -2259,42 +2295,41 @@ class TemperatureRangeCard extends HTMLElement {
           if (!monthsMap[key]) {
             monthsMap[key] = { label: mName, min: val, max: val };
           } else {
-            if (monthsMap[key].min === null || val < monthsMap[key].min) monthsMap[key].min = val;
-            if (monthsMap[key].max === null || val > monthsMap[key].max) monthsMap[key].max = val;
+            if (val < monthsMap[key].min) monthsMap[key].min = val;
+            if (val > monthsMap[key].max) monthsMap[key].max = val;
           }
         }
-      }
-
-      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      if (currentTempValue !== null) {
-        const curVal = parseFloat(currentTempValue);
-        let mName = now.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
-        mName = mName.charAt(0).toUpperCase() + mName.slice(1);
-        if (!monthsMap[currentMonthKey]) {
-          monthsMap[currentMonthKey] = { label: mName, min: curVal, max: curVal };
-        } else {
-          if (monthsMap[currentMonthKey].min === null || curVal < monthsMap[currentMonthKey].min) monthsMap[currentMonthKey].min = curVal;
-          if (monthsMap[currentMonthKey].max === null || curVal > monthsMap[currentMonthKey].max) monthsMap[currentMonthKey].max = curVal;
+        if (currentTempValue !== null) {
+          const curVal = parseFloat(currentTempValue);
+          let mName = now.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
+          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
+          if (!monthsMap[currentMonthKey]) {
+            monthsMap[currentMonthKey] = { label: mName, min: curVal, max: curVal };
+          } else {
+            if (curVal < monthsMap[currentMonthKey].min) monthsMap[currentMonthKey].min = curVal;
+            if (curVal > monthsMap[currentMonthKey].max) monthsMap[currentMonthKey].max = curVal;
+          }
         }
+        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
+        rowsList = sortedKeys.map(k => ({
+          label: monthsMap[k].label,
+          min: monthsMap[k].min,
+          max: monthsMap[k].max,
+          sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+          isToday: k === currentMonthKey
+        }));
       }
-
-      const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
-      rowsList = sortedKeys.map((k, idx) => ({
-        label: monthsMap[k].label,
-        min: monthsMap[k].min,
-        max: monthsMap[k].max,
-        sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-        isToday: k === currentMonthKey
-      }));
 
     } else if (unit === "y") {
       subtitleHtml = count === 1
         ? `<span>${localize("subtitle_year_single", this._hass)}</span>`
         : `<span>${localize("subtitle_years", this._hass, { count })}</span>`;
-      const yearsMap = {};
+      const currentYearStr = String(now.getFullYear());
+
       if (this._stats && this._stats.length) {
+        const yearsMap = {};
         for (const stat of this._stats) {
-          const dt = new Date(stat.start);
+          const dt = new Date(stat.start + 86400000 * 5);
           const yKey = String(dt.getFullYear());
           if (!yearsMap[yKey]) {
             yearsMap[yKey] = { label: yKey, min: stat.min, max: stat.max };
@@ -2307,27 +2342,24 @@ class TemperatureRangeCard extends HTMLElement {
             }
           }
         }
-      }
-
-      const currentYearStr = String(now.getFullYear());
-      if (currentTempValue !== null) {
-        const curVal = parseFloat(currentTempValue);
-        if (!yearsMap[currentYearStr]) {
-          yearsMap[currentYearStr] = { label: currentYearStr, min: curVal, max: curVal };
-        } else {
-          if (yearsMap[currentYearStr].min === null || curVal < yearsMap[currentYearStr].min) yearsMap[currentYearStr].min = curVal;
-          if (yearsMap[currentYearStr].max === null || curVal > yearsMap[currentYearStr].max) yearsMap[currentYearStr].max = curVal;
+        if (currentTempValue !== null) {
+          const curVal = parseFloat(currentTempValue);
+          if (!yearsMap[currentYearStr]) {
+            yearsMap[currentYearStr] = { label: currentYearStr, min: curVal, max: curVal };
+          } else {
+            if (yearsMap[currentYearStr].min === null || curVal < yearsMap[currentYearStr].min) yearsMap[currentYearStr].min = curVal;
+            if (yearsMap[currentYearStr].max === null || curVal > yearsMap[currentYearStr].max) yearsMap[currentYearStr].max = curVal;
+          }
         }
+        const sortedKeys = Object.keys(yearsMap).sort().reverse().slice(0, count);
+        rowsList = sortedKeys.map(k => ({
+          label: k === currentYearStr ? `${k} (${localize("in_progress", this._hass)})` : k,
+          min: yearsMap[k].min,
+          max: yearsMap[k].max,
+          sameTimeVal: k === currentYearStr ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+          isToday: k === currentYearStr
+        }));
       }
-
-      const sortedKeys = Object.keys(yearsMap).sort().reverse().slice(0, count);
-      rowsList = sortedKeys.map((k, idx) => ({
-        label: k === currentYearStr ? `${k} (${localize("in_progress", this._hass)})` : k,
-        min: yearsMap[k].min,
-        max: yearsMap[k].max,
-        sameTimeVal: k === currentYearStr ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-        isToday: k === currentYearStr
-      }));
     }
 
     // Calculer les bornes globales Min et Max pour la barre grise
