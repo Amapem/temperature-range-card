@@ -1739,18 +1739,30 @@ class TemperatureRangeCard extends HTMLElement {
       this._entitiesList = [];
     }
 
+    const storageEntityKey = this._getStorageKey("entity");
+    let savedEntity = null;
+    try {
+      savedEntity = localStorage.getItem(storageEntityKey) || localStorage.getItem("temp_range_selected_entity");
+    } catch (_) {}
+    const validSavedEntity = this._entitiesList.some(e => e.entity === savedEntity) ? savedEntity : null;
     const configDefault = extractEntityId(this.config.default_entity);
     const validConfigDefault = this._entitiesList.some(e => e.entity === configDefault) ? configDefault : null;
-    this._selectedEntity = validConfigDefault || (this._entitiesList[0] ? this._entitiesList[0].entity : "");
+    this._selectedEntity = validSavedEntity || validConfigDefault || (this._entitiesList[0] ? this._entitiesList[0].entity : "");
 
     const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
       : ["10d", "20d", "30d", "20w", "12m"];
     const sortedAllowed = sortPeriods(rawAllowed);
 
+    const storagePeriodKey = this._getStorageKey("period");
+    let savedPeriod = null;
+    try {
+      savedPeriod = localStorage.getItem(storagePeriodKey) || localStorage.getItem("temp_range_selected_period");
+    } catch (_) {}
+    const isSavedPeriodValid = savedPeriod && sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(savedPeriod).raw);
     const configPeriod = this.config.default_period;
     const isConfigPeriodValid = sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(configPeriod).raw);
-    this._selectedPeriod = isConfigPeriodValid ? configPeriod : (sortedAllowed[0] || "10d");
+    this._selectedPeriod = isSavedPeriodValid ? savedPeriod : (isConfigPeriodValid ? configPeriod : (sortedAllowed[0] || "10d"));
 
     this._history = null;
     this._stats = null;
@@ -1920,8 +1932,22 @@ class TemperatureRangeCard extends HTMLElement {
     }
   }
 
+  _getStorageKey(suffix) {
+    const listStr = (this._entitiesList || []).map(e => e.entity).sort().join(",");
+    let hash = 0;
+    const combined = (this.config?.title || "card") + ":" + listStr;
+    for (let i = 0; i < combined.length; i++) {
+      hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+      hash |= 0;
+    }
+    return `trc_${Math.abs(hash)}_${suffix}`;
+  }
+
   _onSelectChange(e) {
     this._selectedEntity = e.target.value;
+    try {
+      localStorage.setItem(this._getStorageKey("entity"), this._selectedEntity);
+    } catch (_) {}
     this._history = null;
     this._stats = null;
     this._render();
@@ -1930,6 +1956,9 @@ class TemperatureRangeCard extends HTMLElement {
 
   _onPeriodChange(e) {
     this._selectedPeriod = e.target.value;
+    try {
+      localStorage.setItem(this._getStorageKey("period"), this._selectedPeriod);
+    } catch (_) {}
     this._history = null;
     this._stats = null;
     this._render();

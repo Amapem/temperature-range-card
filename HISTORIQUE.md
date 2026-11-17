@@ -83,15 +83,12 @@ Ce document retrace l'historique complet de conception, des choix d'architecture
     1. **Injection proactive de la période en cours** : Pour les semaines ISO, mois et années, la carte intègre systématiquement la période actuelle en direct avec la température ou consigne temps réel (`cur.state`), garantissant que la ligne en cours s'affiche immédiatement même pour un capteur créé il y a 5 minutes.
     2. **Agrégation journalière pour les semaines ISO** : Les requêtes hebdomadaires s'appuient désormais sur les statistiques journalières (`period: "day"`) et l'historique brut des 7 derniers jours (`history/period`), universellement supportés et agrégés côté frontend par numéro de semaine ISO.
     3. **Notification explicite d'absence de LTS** : Remplacement du chargement infini par un message propre d'information guidant l'utilisateur sur la nécessité de l'attribut `state_class: measurement` dans Home Assistant pour l'historique étendu.
-* 🎛️ **Épuration de l'éditeur visuel & Suppression du `localStorage` parasite** :
-  * **Constat initial (Retour utilisateur & Retour d'expérience mobile/PC)** :
-    * Sur mobile et sur PC, la carte s'ouvrait systématiquement sur des vues différentes (la dernière sélectionnée sur chaque appareil) au lieu du capteur configuré par défaut.
-    * Le champ "Capteur par défaut" et "Période par défaut" ne fonctionnait que lors de la toute première ouverture sur un navigateur vierge, puis était irrémédiablement écrasé par la mémoire locale `localStorage`.
-    * En cas d'utilisation de plusieurs cartes sur un même dashboard, les sélections de l'une écrasaient celles de l'autre via les clés globales de `localStorage`.
-  * **Arbitrage technique & Solution retenue (Option 2 - Simplification radicale)** :
-    * **Règle naturelle d'ouverture** : Le **premier capteur de la liste** et la **première durée active** font désormais strictement foi au chargement de la carte. Pour choisir quel capteur ou quelle durée afficher par défaut à l'ouverture, l'utilisateur le positionne simplement en première position via la poignée de réorganisation native `≡` (Drag & Drop) ou les boutons fléchés `▲` `▼`.
-    * **Suppression de `localStorage`** : La carte démarre toujours de manière stable, cohérente et prévisible sur son capteur n°1, quel que soit l'appareil (PC, tablette, mobile) et même avec plusieurs cartes distinctes sur une même page. Les menus déroulants de la carte permettent d'explorer temporairement d'autres capteurs et durées sans altérer l'état initial.
-    * **Éditeur visuel allégé** : Suppression des deux sélecteurs superflus *"Capteur par défaut"* et *"Période par défaut"* dans la section des paramètres généraux. L'éditeur est plus compact, plus rapide et supprime toute ambiguïté de configuration.
+* 🎛️ **Épuration de l'éditeur visuel & Mémorisation de session cloisonnée par carte** :
+  * **Constat & Choix utilisateur** :
+    * L'utilisateur souhaite conserver la dernière vue consultée lors du rechargement de la page (rester sur le capteur et la durée choisis pendant la session).
+    * Pour éviter le piège des conflits entre plusieurs cartes, la mémorisation a été refondue : elle génère désormais un identifiant unique par carte (`trc_<hash>_entity` et `trc_<hash>_period`).
+    * Plusieurs cartes sur le même dashboard conservent désormais chacune leur propre sélection indépendante sans jamais interférer.
+    * L'éditeur visuel reste épuré (sans les sélecteurs redondants) : le 1er capteur et la 1ère durée de la liste servent d'état initial lors de la toute première consultation.
 * 🐛 **Résolution de l'écran noir lors de l'ajout d'une carte dans un dashboard** :
   * **Constat initial (Retour utilisateur Discord)** :
     * Lors de l'ajout de la carte dans un tableau de bord Home Assistant, le panneau d'aperçu de droite reste totalement noir / vide.
