@@ -71,11 +71,36 @@ Ce document retrace l'historique complet de conception, des choix d'architecture
 
 ---
 
+### 🏷️ Version 4.1.2 — Correctifs Transition Heure d'Hiver (DST) & Stabilité Éditeur Visuel (17/11/2026)
+* 🐛 **Résolution de la perte de focus et des modifications successives dans l'éditeur visuel Lovelace** :
+  * **Constat initial (Retour Forum HACF & Tests)** : 
+    1. Perte du focus après chaque lettre tapée dans les champs de saisie (titre de carte, nom de capteur).
+    2. Blocage des modifications suivantes : seule la première modification était enregistrée, les modifications ultérieures dans d'autres champs étaient ignorées.
+  * **Causes racines identifiées** :
+    1. **Destruction du Shadow DOM** : L'événement `input` déclenchait `config-changed` qui rappelait `setConfig()`, exécutant inconditionnellement `this._render()` (`innerHTML = ...`), détruisant l'élément actif du DOM.
+    2. **Immutabilité et égalité de référence dans Home Assistant / LitElement** : `_fireConfigChanged()` transmettait la même référence d'objet mutée (`detail: { config: this._config }`). Lors de la première modification, Home Assistant adoptait cette référence. Aux modifications suivantes, l'égalité stricte `oldConfig === newConfig` dans Home Assistant amenait le système à croire qu'aucun changement n'avait eu lieu, ignorant toutes les modifications suivantes !
+  * **Solution technique & Optimisations** :
+    1. **Clonage systématique de la configuration (`structuredClone(this._config)`)** : Garantit une nouvelle référence d'objet distincte à chaque événement émis, forçant Home Assistant à prendre en compte chaque modification successive sans exception.
+    2. **Synchronisation transparente de l'état sans destruction du DOM** : Dans `setConfig()`, si un champ est actif (`activeElement`), l'état interne `this._config` est synchronisé sans jamais détruire le DOM ni interrompre l'utilisateur.
+    3. **Architecture d'événements propre (`input` pour le rendu local, `change`/`blur` pour Lovelace)** :
+       - Pendant la frappe, `input` actualise immédiatement la valeur locale et le titre du bandeau de l'accordéon en direct sans émettre vers Lovelace, éliminant tout conflit asynchrone.
+       - Dès la validation (Entrée, changement de champ ou clic "Enregistrer"), `change` et `blur` transmettent la valeur finale stabilisée.
+    4. **Indicateurs d'épaisseur fluides** : Le réglage de l'épaisseur des barres (`bar_height`) met à jour dynamiquement les badges et le label en temps réel sans reconstruction du DOM.
+    5. **Sauvegarde et restauration automatique du focus** : Mémorisation de l'élément actif (`activeElement`) et de la position exacte du curseur (`selectionStart`/`selectionEnd`) avant tout rendu structurel.
+* 🐛 **Résolution de la duplication du dernier dimanche d'octobre (changement d'heure / DST)** :
+  * **Constat** : Sur la vue 30 jours, le dimanche 25/10 (jour du passage à l'heure d'hiver en Europe) apparaissait en double : une ligne complète avec données (`15.9°` / `16.6°`) suivie d'une seconde ligne vide fantôme (`--°`).
+  * **Cause racine** : La boucle d'initialisation des jours utilisait une soustraction de 24 heures fixes en millisecondes (`now.getTime() - i * 24 * 3600 * 1000`). Lors du passage à l'heure d'hiver (journée de 25 heures en UTC), une consultation en fin de soirée (ex: 23h30 CET) faisait atterrir deux itérations consécutives dans la même journée civile du 25 octobre (23h30 CET puis 00h30 CEST).
+  * **Solution technique** : Remplacement de l'arithmétique en millisecondes fixes par la manipulation de dates calendaires locales natives (`targetDate.setDate(now.getDate() - i)`).
+  * **Fiabilisation des requêtes Recorder** : Calage de la date de départ des statistiques (`dStatsStart.setHours(0, 0, 0, 0)`) pour garantir la couverture intégrale du premier jour demandé, indépendamment de toute variation de fuseau ou transition horaire.
+
+---
+
 ### 🏷️ Version 4.1.1 — Nettoyage de l'alias et élimination de la DOMException Lovelace (16/11/2026)
 * 🐛 **Résolution de l'erreur `CustomElementRegistry` (`DOMException`)** :
   * Résolution définitive de l'erreur *"Failed to execute 'define' on 'CustomElementRegistry': this constructor has already been used with this registry"* rapportée par OUARZA sur le forum HACF.
-  * Suppression de l'alias redondant `temperature-history-range-card` pour ne conserver qu'un composant unique et universel : `custom:temperature-range-card`.
-  * Élimination de tout conflit dans le registre scoped de Home Assistant tout en préservant le nom affiché complet *"Temperature History & Range Card"* dans Lovelace.
+  * **Arbitrage technique** : Refus délibéré de conserver un alias ou de cloner le constructeur Web Component. Retour à un nommage unique, standard et pérenne : `custom:temperature-range-card`.
+  * Suppression totale de l'alias redondant `temperature-history-range-card` dans le code et la documentation, éliminant tout risque de conflit dans le scoped-registry de Home Assistant.
+  * Conservation intégrale du titre affiché officiel *"Temperature History & Range Card"* dans l'interface et le sélecteur Lovelace.
 
 ---
 

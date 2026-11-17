@@ -1,5 +1,12 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
+ * v4.1.2 :
+ * - Résolution de la perte de focus et des modifications bloquées dans l'éditeur visuel Lovelace
+ * - Découplage des événements de saisie (input direct, change/blur vers Lovelace) et immutabilité (structuredClone)
+ * - Mises à jour DOM ciblées et réactives en direct sans destruction du Shadow DOM
+ * - Correction du bug de duplication du dernier dimanche d'octobre (changement d'heure / DST)
+ *   Remplacement de la soustraction fixe de 24h (86400000ms) par un décalage calendaire strict (setDate)
+ *   Résolution des barres fantômes vides (--°) lors des transitions heure d'été / heure d'hiver
  * v4.1.1 :
  * - Suppression de l'alias de balise redondant pour préserver un nom unique strict ('custom:temperature-range-card')
  *   et éliminer toute erreur DOMException / CustomElementRegistry dans Lovelace
@@ -528,10 +535,11 @@ class TemperatureRangeCardEditor extends HTMLElement {
     this._config = null;
     this._hass = null;
     this._expandedSet = new Set();
+    this._isRendered = false;
   }
 
   setConfig(config) {
-    this._config = Object.assign({
+    const newConfig = Object.assign({
       title: "Comparatif & Amplitudes Thermiques",
       default_period: "10d",
       show_scale: true,
@@ -542,23 +550,45 @@ class TemperatureRangeCardEditor extends HTMLElement {
       entities: []
     }, structuredClone(config));
 
-    if (!Array.isArray(this._config.available_periods) || this._config.available_periods.length === 0) {
-      this._config.available_periods = ["10d", "20d", "30d", "20w", "12m"];
+    if (!Array.isArray(newConfig.available_periods) || newConfig.available_periods.length === 0) {
+      newConfig.available_periods = ["10d", "20d", "30d", "20w", "12m"];
     } else {
-      this._config.available_periods = sortPeriods(this._config.available_periods);
+      newConfig.available_periods = sortPeriods(newConfig.available_periods);
     }
 
-    if (Array.isArray(this._config.entities)) {
-      this._config.entities = this._config.entities.map(e => {
+    if (Array.isArray(newConfig.entities)) {
+      newConfig.entities = newConfig.entities.map(e => {
         if (typeof e === "string") return { entity: e, name: "" };
         return { entity: e.entity || "", name: e.name || "" };
       });
-    } else if (this._config.entity) {
-      this._config.entities = [{ entity: this._config.entity, name: this._config.name || "" }];
+    } else if (newConfig.entity) {
+      newConfig.entities = [{ entity: newConfig.entity, name: newConfig.name || "" }];
     } else {
-      this._config.entities = [];
+      newConfig.entities = [];
     }
 
+    // Premier rendu initial
+    if (!this._isRendered) {
+      this._config = newConfig;
+      this._render();
+      return;
+    }
+
+    // Si la configuration est déjà strictement identique
+    if (this._config && JSON.stringify(this._config) === JSON.stringify(newConfig)) {
+      this._config = newConfig;
+      return;
+    }
+
+    // Si un champ de l'éditeur est actuellement en cours de saisie/focus par l'utilisateur,
+    // on synchronise l'état interne sans détruire le DOM
+    const active = this.shadowRoot.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "SELECT" || active.tagName === "TEXTAREA")) {
+      this._config = newConfig;
+      return;
+    }
+
+    this._config = newConfig;
     this._render();
   }
 
@@ -584,7 +614,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
   _fireConfigChanged() {
     const event = new CustomEvent("config-changed", {
-      detail: { config: this._config },
+      detail: { config: structuredClone(this._config) },
       bubbles: true,
       composed: true
     });
@@ -593,6 +623,27 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot || !this._config) return;
+
+    // Sauvegarder l'état du focus avant actualisation du DOM
+    let focusState = null;
+    try {
+      const active = this.shadowRoot.activeElement;
+      if (active && (active.tagName === "INPUT" || active.tagName === "SELECT" || active.tagName === "TEXTAREA")) {
+        if (active.id) {
+          focusState = {
+            id: active.id,
+            start: active.selectionStart,
+            end: active.selectionEnd
+          };
+        } else if (active.classList && active.classList.contains("entity-name-input")) {
+          focusState = {
+            selector: `.entity-name-input[data-index="${active.getAttribute("data-index")}"]`,
+            start: active.selectionStart,
+            end: active.selectionEnd
+          };
+        }
+      }
+    } catch (_) {}
 
     const entities = this._config.entities || [];
     const showScale = this._config.show_scale !== false;
@@ -1160,7 +1211,16 @@ class TemperatureRangeCardEditor extends HTMLElement {
     if (titleInput) {
       titleInput.addEventListener("input", (e) => {
         this._config.title = e.target.value;
+      });
+      titleInput.addEventListener("change", (e) => {
+        this._config.title = e.target.value;
         this._fireConfigChanged();
+      });
+      titleInput.addEventListener("blur", (e) => {
+        if (this._config.title !== e.target.value) {
+          this._config.title = e.target.value;
+          this._fireConfigChanged();
+        }
       });
     }
 
@@ -1201,17 +1261,28 @@ class TemperatureRangeCardEditor extends HTMLElement {
       gradSelect.addEventListener("change", (e) => {
         this._config.gradient_mode = e.target.value;
         this._fireConfigChanged();
-        this._render();
       });
     }
 
     const heightInput = this.shadowRoot.getElementById("bar-height-input");
     if (heightInput) {
+      heightInput.addEventListener("input", (e) => {
+        const val = Math.max(6, Math.min(60, parseInt(e.target.value, 10) || 18));
+        this._config.bar_height = val;
+
+        const heightLabel = this.shadowRoot.querySelector(".form-label-row .form-label strong");
+        if (heightLabel) {
+          heightLabel.textContent = `${val} px`;
+        }
+
+        this.shadowRoot.querySelectorAll('[data-action="set-height"]').forEach(badge => {
+          badge.classList.toggle("active", parseInt(badge.dataset.val, 10) === val);
+        });
+      });
       heightInput.addEventListener("change", (e) => {
         const val = Math.max(6, Math.min(60, parseInt(e.target.value, 10) || 18));
         this._config.bar_height = val;
         this._fireConfigChanged();
-        this._render();
       });
     }
 
@@ -1219,8 +1290,20 @@ class TemperatureRangeCardEditor extends HTMLElement {
       badge.addEventListener("click", () => {
         const val = parseInt(badge.dataset.val, 10) || 18;
         this._config.bar_height = val;
+
+        const hInput = this.shadowRoot.getElementById("bar-height-input");
+        if (hInput) hInput.value = val;
+
+        const heightLabel = this.shadowRoot.querySelector(".form-label-row .form-label strong");
+        if (heightLabel) {
+          heightLabel.textContent = `${val} px`;
+        }
+
+        this.shadowRoot.querySelectorAll('[data-action="set-height"]').forEach(b => {
+          b.classList.toggle("active", parseInt(b.dataset.val, 10) === val);
+        });
+
         this._fireConfigChanged();
-        this._render();
       });
     });
 
@@ -1342,9 +1425,40 @@ class TemperatureRangeCardEditor extends HTMLElement {
     // Écouteurs pour le champ de nom personnalisé
     const nameInputs = this.shadowRoot.querySelectorAll(".entity-name-input");
     nameInputs.forEach(input => {
+      const idx = parseInt(input.getAttribute("data-index"), 10);
       input.addEventListener("input", (ev) => {
-        const idx = parseInt(ev.target.getAttribute("data-index"), 10);
         if (this._config.entities[idx]) {
+          this._config.entities[idx].name = ev.target.value;
+
+          // Mise à jour immédiate du titre du bandeau sans détruire le DOM
+          const card = input.closest(".entity-card");
+          if (card) {
+            const titleEl = card.querySelector(".entity-title-text");
+            if (titleEl) {
+              const displayName = ev.target.value || this._config.entities[idx].entity || `Capteur #${idx + 1}`;
+              titleEl.textContent = displayName;
+              titleEl.title = displayName;
+            }
+          }
+
+          // Mise à jour de l'option correspondante dans le sélecteur de capteur par défaut
+          const defaultSelect = this.shadowRoot.getElementById("default-entity-select");
+          if (defaultSelect && this._config.entities[idx].entity) {
+            const opt = defaultSelect.querySelector(`option[value="${this._config.entities[idx].entity}"]`);
+            if (opt) {
+              opt.textContent = ev.target.value || this._config.entities[idx].entity;
+            }
+          }
+        }
+      });
+      input.addEventListener("change", (ev) => {
+        if (this._config.entities[idx]) {
+          this._config.entities[idx].name = ev.target.value;
+          this._fireConfigChanged();
+        }
+      });
+      input.addEventListener("blur", (ev) => {
+        if (this._config.entities[idx] && this._config.entities[idx].name !== ev.target.value) {
           this._config.entities[idx].name = ev.target.value;
           this._fireConfigChanged();
         }
@@ -1496,6 +1610,23 @@ class TemperatureRangeCardEditor extends HTMLElement {
         this._render();
       });
     }
+
+    this._isRendered = true;
+
+    // Restaurer le focus si nécessaire
+    if (focusState) {
+      try {
+        const target = focusState.id
+          ? this.shadowRoot.getElementById(focusState.id)
+          : (focusState.selector ? this.shadowRoot.querySelector(focusState.selector) : null);
+        if (target) {
+          target.focus();
+          if (typeof focusState.start === "number" && typeof focusState.end === "number") {
+            target.setSelectionRange(focusState.start, focusState.end);
+          }
+        }
+      } catch (_) {}
+    }
   }
 }
 
@@ -1607,10 +1738,17 @@ class TemperatureRangeCard extends HTMLElement {
       const statsIds = [this._selectedEntity];
 
       if (unit === "d") {
-        const statsStart = new Date(now - (count + 1) * 24 * 3600 * 1000).toISOString();
+        const dStatsStart = new Date(now);
+        dStatsStart.setDate(dStatsStart.getDate() - (count + 1));
+        dStatsStart.setHours(0, 0, 0, 0);
+        const statsStart = dStatsStart.toISOString();
+
         // Récupérer l'historique brut jusqu'à 31 jours (le recorder fournira ce qu'il conserve réellement)
         const histDays = Math.min(count, 31);
-        const histStart = new Date(now - (histDays + 1) * 24 * 3600 * 1000).toISOString();
+        const dHistStart = new Date(now);
+        dHistStart.setDate(dHistStart.getDate() - (histDays + 1));
+        dHistStart.setHours(0, 0, 0, 0);
+        const histStart = dHistStart.toISOString();
 
         // 1. Fetch detailed history for same-time points
         const histPromise = this._hass.callWS({
@@ -1805,9 +1943,10 @@ class TemperatureRangeCard extends HTMLElement {
       // Nombre de jours réels disposant d'un point historique à la même heure
       let pointsAvailableCount = 0;
 
-      // 2. Initialiser les N jours
+      // 2. Initialiser les N jours (utilisation de setDate pour respecter strictement les jours calendaires et transitions DST/heure d'été-hiver)
       for (let i = 0; i < daysCount; i++) {
-        const targetDate = new Date(now.getTime() - i * 24 * 3600 * 1000);
+        const targetDate = new Date(now);
+        targetDate.setDate(now.getDate() - i);
         const dateStr = targetDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
         const targetTs = Math.floor(targetDate.getTime() / 1000);
         
