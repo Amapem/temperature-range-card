@@ -1,5 +1,18 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
+ * v4.1.3 :
+ * - Fiabilisation des vues Semaines, Mois et Années : intégration en temps réel de la valeur actuelle et agrégation journalière pour les nouveaux capteurs
+ * - Fallback robuste sur l'historique brut des états récents pour les synthèses hebdomadaires
+ * - Remplacement du message de chargement infini par une notification explicite si aucune statistique LTS n'est disponible (attribut state_class)
+ * - Correction du bug d'échappement ${localize("loading", this._hass)} affiché en texte littéral
+ * - Épuration de l'éditeur visuel : suppression des sélecteurs redondants "Capteur par défaut" et "Période par défaut"
+ * - Comportement naturel et prévisible : le 1er capteur et la 1ère durée de la liste font foi à l'ouverture
+ * - Élimination de la mémoire locale (localStorage) parasite responsable des incohérences inter-appareils et multi-cartes
+ * - Résolution de l'écran noir lors de l'ajout d'une carte dans Lovelace (élimination du blocage silencieux dans set hass)
+ * - Bascule automatique et intelligente vers les capteurs disponibles en cas d'entité initiale manquante ou invalide
+ * - Élimination de l'affichage [object Object] dans l'éditeur visuel et assainissement strict des entités et noms
+ * - Détection dynamique intelligente dans getStubConfig : reconnaissance des capteurs passés par Lovelace ou découverte automatique des sondes de température existantes
+ * - Titre par défaut internationalisé selon la locale Home Assistant lors de la création de la carte
  * v4.1.2 :
  * - Résolution de la perte de focus et des modifications bloquées dans l'éditeur visuel Lovelace
  * - Découplage des événements de saisie (input direct, change/blur vers Lovelace) et immutabilité (structuredClone)
@@ -81,6 +94,45 @@ function parsePeriod(periodStr) {
   return { count: 10, unit: "d", raw: "10d" };
 }
 
+function extractEntityId(val) {
+  if (!val) return "";
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    return (trimmed === "[object Object]" || trimmed === "undefined" || trimmed === "null") ? "" : trimmed;
+  }
+  if (typeof val === "object" && val !== null) {
+    const id = val.entity_id || val.entity || val.value || val.id || "";
+    return extractEntityId(id);
+  }
+  return "";
+}
+
+function extractEntityName(nameVal) {
+  if (!nameVal) return "";
+  if (typeof nameVal === "string") {
+    const trimmed = nameVal.trim();
+    return (trimmed === "[object Object]" || trimmed === "undefined" || trimmed === "null") ? "" : trimmed;
+  }
+  return "";
+}
+
+function normalizeEntities(rawEntities) {
+  if (!Array.isArray(rawEntities)) return [];
+  return rawEntities.map(e => {
+    if (!e) return null;
+    if (typeof e === "string") {
+      const id = extractEntityId(e);
+      return id ? { entity: id, name: "" } : null;
+    }
+    if (typeof e === "object" && e !== null) {
+      const id = extractEntityId(e.entity || e.entity_id || e.value || e);
+      const name = extractEntityName(e.name);
+      return { entity: id, name: name };
+    }
+    return null;
+  }).filter(Boolean);
+}
+
 // =============================================================================
 // INTERNATIONALISATION (i18n) - 6 LANGUES : EN, FR, DE, ES, IT, NL
 // =============================================================================
@@ -97,6 +149,7 @@ const TRANSLATIONS = {
     current_temp: "Current temp",
     same_time: "Same time past days",
     loading: "Loading historical data...",
+    no_stats_notice: "No statistical data available for this duration.<br><small style='opacity:0.8;'>Home Assistant requires the <code>state_class: measurement</code> attribute on the sensor for long-term statistics.</small>",
     no_sensors_title: "No sensor configured",
     no_sensors_desc: "Click <strong>Edit</strong> to add your temperature sensors.",
     period_d_single: "1 day",
@@ -161,6 +214,7 @@ const TRANSLATIONS = {
     current_temp: "T° actuelle",
     same_time: "Même heure les jours passés",
     loading: "Chargement des données historiques...",
+    no_stats_notice: "Aucune donnée statistique disponible pour cette durée.<br><small style='opacity:0.8;'>Home Assistant nécessite l'attribut <code>state_class: measurement</code> sur l'entité pour enregistrer l'historique étendu.</small>",
     no_sensors_title: "Aucun capteur configuré",
     no_sensors_desc: "Cliquez sur <strong>Modifier</strong> pour ajouter vos capteurs.",
     period_d_single: "1 jour",
@@ -225,6 +279,7 @@ const TRANSLATIONS = {
     current_temp: "Aktuelle Temp.",
     same_time: "Gleiche Zeit vergangene Tage",
     loading: "Historische Daten laden...",
+    no_stats_notice: "Keine statistischen Daten für diesen Zeitraum verfügbar.<br><small style='opacity:0.8;'>Home Assistant benötigt das Attribut <code>state_class: measurement</code> für Langzeitstatistiken.</small>",
     no_sensors_title: "Kein Sensor konfiguriert",
     no_sensors_desc: "Klicken Sie auf <strong>Bearbeiten</strong>, um Sensoren hinzuzufügen.",
     period_d_single: "1 Tag",
@@ -289,6 +344,7 @@ const TRANSLATIONS = {
     current_temp: "T° actual",
     same_time: "Misma hora días anteriores",
     loading: "Cargando datos históricos...",
+    no_stats_notice: "No hay datos estadísticos disponibles para este período.<br><small style='opacity:0.8;'>Home Assistant requiere el atributo <code>state_class: measurement</code> para estadísticas a largo plazo.</small>",
     no_sensors_title: "Sin sensores configurados",
     no_sensors_desc: "Haga clic en <strong>Editar</strong> para añadir sensores.",
     period_d_single: "1 día",
@@ -353,6 +409,7 @@ const TRANSLATIONS = {
     current_temp: "T° attuale",
     same_time: "Stessa ora giorni passati",
     loading: "Caricamento dati storici...",
+    no_stats_notice: "Nessun dato statistico disponibile per questo periodo.<br><small style='opacity:0.8;'>Home Assistant richiede l'attributo <code>state_class: measurement</code> per le statistiche a lungo termine.</small>",
     no_sensors_title: "Nessun sensore configurato",
     no_sensors_desc: "Clicca su <strong>Modifica</strong> per aggiungere sensori.",
     period_d_single: "1 giorno",
@@ -417,6 +474,7 @@ const TRANSLATIONS = {
     current_temp: "Huidige temp.",
     same_time: "Zelfde tijd afgelopen dagen",
     loading: "Historische gegevens laden...",
+    no_stats_notice: "Geen statistische gegevens beschikbaar voor deze periode.<br><small style='opacity:0.8;'>Home Assistant vereist het attribuut <code>state_class: measurement</code> voor langetermijnstatistieken.</small>",
     no_sensors_title: "Geen sensor geconfigureerd",
     no_sensors_desc: "Klik op <strong>Bewerken</strong> om sensoren toe te voegen.",
     period_d_single: "1 dag",
@@ -557,12 +615,10 @@ class TemperatureRangeCardEditor extends HTMLElement {
     }
 
     if (Array.isArray(newConfig.entities)) {
-      newConfig.entities = newConfig.entities.map(e => {
-        if (typeof e === "string") return { entity: e, name: "" };
-        return { entity: e.entity || "", name: e.name || "" };
-      });
+      newConfig.entities = normalizeEntities(newConfig.entities);
     } else if (newConfig.entity) {
-      newConfig.entities = [{ entity: newConfig.entity, name: newConfig.name || "" }];
+      const singleId = extractEntityId(newConfig.entity);
+      newConfig.entities = singleId ? [{ entity: singleId, name: extractEntityName(newConfig.name) }] : [];
     } else {
       newConfig.entities = [];
     }
@@ -651,14 +707,13 @@ class TemperatureRangeCardEditor extends HTMLElement {
     const gradientMode = (this._config.gradient_mode === "local") ? "local" : "global";
     const barHeight = Math.max(6, Math.min(60, parseInt(this._config.bar_height, 10) || 18));
     const availablePeriods = sortPeriods(this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"]);
-    const defaultPeriod = this._config.default_period || availablePeriods[0] || "10d";
-    const defaultEntity = this._config.default_entity || (entities[0] ? entities[0].entity : "");
-
     const commonPresets = sortPeriods(["2d", "7d", "10d", "14d", "15d", "20d", "30d", "1w", "4w", "8w", "10w", "20w", "3m", "6m", "12m", "24m", "1y", "2y", "3y", "5y"]);
 
     const entitiesHtml = entities.map((item, index) => {
       const isExpanded = this._expandedSet && this._expandedSet.has(index);
-      const displayName = item.name || item.entity || `Capteur #${index + 1}`;
+      const safeName = extractEntityName(item.name);
+      const safeEntity = extractEntityId(item.entity);
+      const displayName = safeName || safeEntity || `Capteur #${index + 1}`;
       return `
         <div class="entity-card ${isExpanded ? "expanded" : "collapsed"}" data-index="${index}" draggable="true">
           <div class="entity-card-header" data-action="toggle-expand" data-index="${index}">
@@ -1078,31 +1133,6 @@ class TemperatureRangeCardEditor extends HTMLElement {
             <label class="form-label">${localize("card_title_label", this._hass)}</label>
             <input type="text" id="title-input" class="form-input" value="${this._config.title || ""}" placeholder="${localize("card_title_placeholder", this._hass)}">
           </div>
-
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label class="form-label">${localize("default_sensor", this._hass)}</label>
-              <select id="default-entity-select" class="form-select">
-                ${entities.length === 0 ? '<option value="">${localize("no_sensor_option", this._hass)}</option>' : ''}
-                ${entities.map(e => `
-                  <option value="${e.entity}" ${e.entity === defaultEntity ? "selected" : ""}>
-                    ${e.name || e.entity}
-                  </option>
-                `).join("")}
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">${localize("default_period", this._hass)}</label>
-              <select id="default-period-select" class="form-select">
-                ${availablePeriods.map(p => `
-                  <option value="${p}" ${p === defaultPeriod ? "selected" : ""}>
-                    ${formatPeriodLabel(p, this._hass)} (${p})
-                  </option>
-                `).join("")}
-              </select>
-            </div>
-          </div>
         </div>
 
         <!-- Options d'Affichage & Style des Barres -->
@@ -1221,22 +1251,6 @@ class TemperatureRangeCardEditor extends HTMLElement {
           this._config.title = e.target.value;
           this._fireConfigChanged();
         }
-      });
-    }
-
-    const defaultEntitySelect = this.shadowRoot.getElementById("default-entity-select");
-    if (defaultEntitySelect) {
-      defaultEntitySelect.addEventListener("change", (e) => {
-        this._config.default_entity = e.target.value;
-        this._fireConfigChanged();
-      });
-    }
-
-    const defaultPeriodSelect = this.shadowRoot.getElementById("default-period-select");
-    if (defaultPeriodSelect) {
-      defaultPeriodSelect.addEventListener("change", (e) => {
-        this._config.default_period = e.target.value;
-        this._fireConfigChanged();
       });
     }
 
@@ -1397,11 +1411,15 @@ class TemperatureRangeCardEditor extends HTMLElement {
         picker.required = true;
         picker.addEventListener("value-changed", (ev) => {
           ev.stopPropagation();
-          const newEntity = ev.detail.value;
+          const rawVal = ev.detail && ev.detail.value !== undefined ? ev.detail.value : ev.target?.value;
+          const newEntity = extractEntityId(rawVal);
           if (newEntity !== undefined && newEntity !== item.entity) {
             item.entity = newEntity;
             if (!item.name && this._hass && this._hass.states[newEntity]) {
               item.name = this._hass.states[newEntity].attributes?.friendly_name || newEntity.replace("sensor.", "");
+            }
+            if (!extractEntityId(this._config.default_entity) && newEntity) {
+              this._config.default_entity = newEntity;
             }
             this._fireConfigChanged();
             this._render();
@@ -1415,8 +1433,13 @@ class TemperatureRangeCardEditor extends HTMLElement {
         input.value = item.entity || "";
         input.placeholder = "sensor.mon_capteur_temperature";
         input.addEventListener("change", (ev) => {
-          item.entity = ev.target.value;
+          const newEntity = extractEntityId(ev.target.value);
+          item.entity = newEntity;
+          if (!extractEntityId(this._config.default_entity) && newEntity) {
+            this._config.default_entity = newEntity;
+          }
           this._fireConfigChanged();
+          this._render();
         });
         slot.appendChild(input);
       }
@@ -1438,15 +1461,6 @@ class TemperatureRangeCardEditor extends HTMLElement {
               const displayName = ev.target.value || this._config.entities[idx].entity || `Capteur #${idx + 1}`;
               titleEl.textContent = displayName;
               titleEl.title = displayName;
-            }
-          }
-
-          // Mise à jour de l'option correspondante dans le sélecteur de capteur par défaut
-          const defaultSelect = this.shadowRoot.getElementById("default-entity-select");
-          if (defaultSelect && this._config.entities[idx].entity) {
-            const opt = defaultSelect.querySelector(`option[value="${this._config.entities[idx].entity}"]`);
-            if (opt) {
-              opt.textContent = ev.target.value || this._config.entities[idx].entity;
             }
           }
         }
@@ -1590,6 +1604,10 @@ class TemperatureRangeCardEditor extends HTMLElement {
             else if (i > idx) nextSet.add(i - 1);
           });
           this._expandedSet = nextSet;
+          const remainingValid = this._config.entities.filter(e => e && extractEntityId(e.entity));
+          if (!remainingValid.some(e => e.entity === this._config.default_entity)) {
+            this._config.default_entity = remainingValid[0] ? remainingValid[0].entity : "";
+          }
           this._fireConfigChanged();
           this._render();
         }
@@ -1643,23 +1661,54 @@ class TemperatureRangeCard extends HTMLElement {
     return document.createElement("temperature-range-card-editor");
   }
 
-  static getStubConfig(hass, entities) {
+  static getStubConfig(hass, entities, entitiesFallback) {
+    let candidateEntity = "";
+    const list = Array.isArray(entities) && entities.length
+      ? entities
+      : (Array.isArray(entitiesFallback) && entitiesFallback.length ? entitiesFallback : []);
+
+    if (hass && hass.states) {
+      candidateEntity = list.find(id => {
+        const s = hass.states[id];
+        if (!s) return false;
+        const attrs = s.attributes || {};
+        return (attrs.unit_of_measurement === "°C" || attrs.unit_of_measurement === "°F" || attrs.device_class === "temperature");
+      }) || "";
+
+      if (!candidateEntity) {
+        const allIds = Object.keys(hass.states);
+        candidateEntity = allIds.find(id => {
+          if (!id.startsWith("sensor.")) return false;
+          const s = hass.states[id];
+          const attrs = s?.attributes || {};
+          return attrs.device_class === "temperature" || attrs.unit_of_measurement === "°C" || attrs.unit_of_measurement === "°F";
+        }) || "";
+      }
+    }
+
+    const defaultEntities = candidateEntity ? [{
+      entity: candidateEntity,
+      name: hass?.states[candidateEntity]?.attributes?.friendly_name || candidateEntity.replace("sensor.", "")
+    }] : [];
+
+    const defaultLang = hass?.locale?.language || "fr";
+    const defaultTitle = TRANSLATIONS[defaultLang]?.card_title_default || TRANSLATIONS.fr.card_title_default;
+
     return {
       type: "custom:temperature-range-card",
-      title: "Comparatif & Amplitudes Thermiques",
-      default_period: "10d",
+      title: defaultTitle,
       show_scale: true,
       show_current: false,
       gradient_mode: "global",
       bar_height: 18,
       available_periods: ["10d", "20d", "30d", "20w", "12m"],
-      entities: []
+      entities: defaultEntities
     };
   }
 
   setConfig(config) {
     this.config = Object.assign({
-      title: "Amplitudes & Comparatif Journalier",
+      title: "Comparatif & Amplitudes Thermiques",
       show_scale: true,
       show_current: false,
       default_period: "10d",
@@ -1668,39 +1717,46 @@ class TemperatureRangeCard extends HTMLElement {
       available_periods: ["10d", "20d", "30d", "20w", "12m"]
     }, config);
 
-    // Initialiser les entités sélectionnables
+    // Initialiser et assainir strictement les entités
     if (this.config.entities && Array.isArray(this.config.entities)) {
       this._entitiesList = this.config.entities.map(e => {
-        if (typeof e === "string") return { entity: e, name: e.replace("sensor.", "") };
-        return e;
-      }).filter(e => e && e.entity);
+        if (typeof e === "string") {
+          const id = extractEntityId(e);
+          return id ? { entity: id, name: id.replace("sensor.", "") } : null;
+        }
+        if (typeof e === "object" && e !== null) {
+          const id = extractEntityId(e.entity || e.entity_id || e.value || e);
+          if (!id) return null;
+          const name = extractEntityName(e.name) || id.replace("sensor.", "");
+          return { entity: id, name: name };
+        }
+        return null;
+      }).filter(Boolean);
     } else if (this.config.entity) {
-      this._entitiesList = [{ entity: this.config.entity, name: this.config.name || "Sélection" }];
+      const id = extractEntityId(this.config.entity);
+      this._entitiesList = id ? [{ entity: id, name: extractEntityName(this.config.name) || id.replace("sensor.", "") }] : [];
     } else {
       this._entitiesList = [];
     }
 
-    const savedEntity = localStorage.getItem("temp_range_selected_entity");
-    const validSavedEntity = this._entitiesList.some(e => e.entity === savedEntity) ? savedEntity : null;
-    this._selectedEntity = validSavedEntity || this.config.default_entity || (this._entitiesList[0] ? this._entitiesList[0].entity : "");
+    const configDefault = extractEntityId(this.config.default_entity);
+    const validConfigDefault = this._entitiesList.some(e => e.entity === configDefault) ? configDefault : null;
+    this._selectedEntity = validConfigDefault || (this._entitiesList[0] ? this._entitiesList[0].entity : "");
 
     const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
       : ["10d", "20d", "30d", "20w", "12m"];
     const sortedAllowed = sortPeriods(rawAllowed);
 
-    const savedPeriod = localStorage.getItem("temp_range_selected_period");
-    let chosenPeriod = savedPeriod || this.config.default_period || sortedAllowed[0];
-    const isChosenValid = sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(chosenPeriod).raw);
-    if (!isChosenValid) {
-      chosenPeriod = sortedAllowed[0] || "10d";
-    }
-    this._selectedPeriod = chosenPeriod;
+    const configPeriod = this.config.default_period;
+    const isConfigPeriodValid = sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(configPeriod).raw);
+    this._selectedPeriod = isConfigPeriodValid ? configPeriod : (sortedAllowed[0] || "10d");
 
     this._history = null;
     this._stats = null;
     this._loading = false;
     this._lastState = null;
+    this._isCardRendered = false;
 
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
@@ -1708,20 +1764,47 @@ class TemperatureRangeCard extends HTMLElement {
 
     if (this._hass) {
       this._render();
-      this._fetchData();
+      if (this._selectedEntity) {
+        this._fetchData();
+      }
     }
   }
 
   set hass(hass) {
     this._hass = hass;
-    const cur = hass.states[this._selectedEntity];
-    if (!cur) return;
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: "open" });
+    }
 
-    if (!this._history && !this._stats && !this._loading) {
-      this._fetchData();
-    } else if (this._lastState !== cur.state) {
-      this._lastState = cur.state;
+    // 1. Si aucune entité n'est configurée, afficher immédiatement l'écran propre d'attente
+    if (!this._entitiesList || this._entitiesList.length === 0) {
       this._render();
+      return;
+    }
+
+    // 2. Si l'entité sélectionnée n'est pas trouvée dans hass.states, tenter de basculer sur une entité valide existante
+    let cur = hass.states[this._selectedEntity];
+    if (!cur) {
+      const fallback = this._entitiesList.find(e => e && e.entity && hass.states[e.entity]);
+      if (fallback) {
+        this._selectedEntity = fallback.entity;
+        cur = hass.states[this._selectedEntity];
+      }
+    }
+
+    // 3. Si premier rendu ou Shadow DOM non initialisé, rendre immédiatement
+    if (!this._isCardRendered) {
+      this._render();
+    }
+
+    // 4. Si une entité est disponible, charger les données ou rafraîchir
+    if (this._selectedEntity) {
+      if (!this._history && !this._stats && !this._loading) {
+        this._fetchData();
+      } else if (cur && this._lastState !== cur.state) {
+        this._lastState = cur.state;
+        this._render();
+      }
     }
   }
 
@@ -1772,28 +1855,48 @@ class TemperatureRangeCard extends HTMLElement {
         this._stats = statsRes[this._selectedEntity] || [];
 
       } else if (unit === "w") {
-        // Fetch count + 2 weeks of statistics to reliably display count full weeks
-        const statsStart = new Date(now - ((count + 2) * 7 * 24 * 3600 * 1000)).toISOString();
-        const statsRes = await this._hass.callWS({
-          type: "recorder/statistics_during_period",
-          start_time: statsStart,
-          statistic_ids: statsIds,
-          period: "week"
-        });
-        this._history = [];
-        this._stats = statsRes[this._selectedEntity] || [];
-
-      } else if (unit === "m") {
-        // Fetch daily statistics for count * 32 days to display count full months
-        const statsStart = new Date(now - ((count * 32 + 10) * 24 * 3600 * 1000)).toISOString();
-        const statsRes = await this._hass.callWS({
+        // Fetch daily statistics to reliably aggregate ISO weeks across all Home Assistant versions
+        const statsStart = new Date(now - ((count * 7 + 14) * 24 * 3600 * 1000)).toISOString();
+        const statsPromise = this._hass.callWS({
           type: "recorder/statistics_during_period",
           start_time: statsStart,
           statistic_ids: statsIds,
           period: "day"
         });
-        this._history = [];
+        const histStart = new Date(now - (7 * 24 * 3600 * 1000)).toISOString();
+        const histPromise = this._hass.callWS({
+          type: "history/period",
+          start_time: histStart,
+          end_time: new Date(now).toISOString(),
+          entity_ids: [this._selectedEntity],
+          minimal_response: true,
+          no_attributes: true
+        });
+        const [statsRes, histRes] = await Promise.all([statsPromise, histPromise]);
         this._stats = statsRes[this._selectedEntity] || [];
+        this._history = histRes[this._selectedEntity] || [];
+
+      } else if (unit === "m") {
+        // Fetch daily statistics for count * 32 days to display count full months
+        const statsStart = new Date(now - ((count * 32 + 10) * 24 * 3600 * 1000)).toISOString();
+        const statsPromise = this._hass.callWS({
+          type: "recorder/statistics_during_period",
+          start_time: statsStart,
+          statistic_ids: statsIds,
+          period: "day"
+        });
+        const histStart = new Date(now - (7 * 24 * 3600 * 1000)).toISOString();
+        const histPromise = this._hass.callWS({
+          type: "history/period",
+          start_time: histStart,
+          end_time: new Date(now).toISOString(),
+          entity_ids: [this._selectedEntity],
+          minimal_response: true,
+          no_attributes: true
+        });
+        const [statsRes, histRes] = await Promise.all([statsPromise, histPromise]);
+        this._stats = statsRes[this._selectedEntity] || [];
+        this._history = histRes[this._selectedEntity] || [];
 
       } else if (unit === "y") {
         // Fetch monthly statistics for count * 366 + 35 days to aggregate annual min/max
@@ -1819,9 +1922,6 @@ class TemperatureRangeCard extends HTMLElement {
 
   _onSelectChange(e) {
     this._selectedEntity = e.target.value;
-    try {
-      localStorage.setItem("temp_range_selected_entity", this._selectedEntity);
-    } catch (_) {}
     this._history = null;
     this._stats = null;
     this._render();
@@ -1830,9 +1930,6 @@ class TemperatureRangeCard extends HTMLElement {
 
   _onPeriodChange(e) {
     this._selectedPeriod = e.target.value;
-    try {
-      localStorage.setItem("temp_range_selected_period", this._selectedPeriod);
-    } catch (_) {}
     this._history = null;
     this._stats = null;
     this._render();
@@ -1880,6 +1977,7 @@ class TemperatureRangeCard extends HTMLElement {
           </div>
         </ha-card>
       `;
+      this._isCardRendered = true;
       return;
     }
 
@@ -2039,26 +2137,70 @@ class TemperatureRangeCard extends HTMLElement {
 
     } else if (unit === "w") {
       subtitleHtml = `<span>Synthèse hebdomadaire des ${count} dernières semaines (Numéros de semaine ISO)</span>`;
+      const weeksMap = {};
+
       if (this._stats && this._stats.length) {
-        const sorted = [...this._stats].reverse().slice(0, count);
-        rowsList = sorted.map((stat, idx) => {
-          const sDate = new Date(stat.start);
-          const wNum = getISOWeekNumber(sDate);
-          const label = idx === 0 ? `Sem. ${wNum} (Auj.)` : `Semaine ${wNum}`;
-          return {
-            label: label,
-            min: stat.min,
-            max: stat.max,
-            sameTimeVal: idx === 0 ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-            isToday: idx === 0
-          };
-        });
+        for (const stat of this._stats) {
+          const dt = new Date(stat.start);
+          const wNum = getISOWeekNumber(dt);
+          const yNum = dt.getFullYear();
+          const key = `${yNum}-W${String(wNum).padStart(2, "0")}`;
+          if (!weeksMap[key]) {
+            weeksMap[key] = { label: `Semaine ${wNum}`, wNum: wNum, min: stat.min, max: stat.max };
+          } else {
+            if (stat.min !== null && (weeksMap[key].min === null || stat.min < weeksMap[key].min)) {
+              weeksMap[key].min = stat.min;
+            }
+            if (stat.max !== null && (weeksMap[key].max === null || stat.max > weeksMap[key].max)) {
+              weeksMap[key].max = stat.max;
+            }
+          }
+        }
       }
+
+      if (this._history && this._history.length) {
+        for (const pt of this._history) {
+          const val = parseFloat(pt.s);
+          if (isNaN(val)) continue;
+          const ptDate = new Date(pt.lu * 1000);
+          const wNum = getISOWeekNumber(ptDate);
+          const yNum = ptDate.getFullYear();
+          const key = `${yNum}-W${String(wNum).padStart(2, "0")}`;
+          if (!weeksMap[key]) {
+            weeksMap[key] = { label: `Semaine ${wNum}`, wNum: wNum, min: val, max: val };
+          } else {
+            if (weeksMap[key].min === null || val < weeksMap[key].min) weeksMap[key].min = val;
+            if (weeksMap[key].max === null || val > weeksMap[key].max) weeksMap[key].max = val;
+          }
+        }
+      }
+
+      const currentWeekNum = getISOWeekNumber(now);
+      const currentWeekKey = `${now.getFullYear()}-W${String(currentWeekNum).padStart(2, "0")}`;
+      if (currentTempValue !== null) {
+        const curVal = parseFloat(currentTempValue);
+        if (!weeksMap[currentWeekKey]) {
+          weeksMap[currentWeekKey] = { label: `Sem. ${currentWeekNum} (Auj.)`, wNum: currentWeekNum, min: curVal, max: curVal };
+        } else {
+          weeksMap[currentWeekKey].label = `Sem. ${currentWeekNum} (Auj.)`;
+          if (weeksMap[currentWeekKey].min === null || curVal < weeksMap[currentWeekKey].min) weeksMap[currentWeekKey].min = curVal;
+          if (weeksMap[currentWeekKey].max === null || curVal > weeksMap[currentWeekKey].max) weeksMap[currentWeekKey].max = curVal;
+        }
+      }
+
+      const sortedKeys = Object.keys(weeksMap).sort().reverse().slice(0, count);
+      rowsList = sortedKeys.map(k => ({
+        label: k === currentWeekKey ? `Sem. ${weeksMap[k].wNum} (Auj.)` : `Semaine ${weeksMap[k].wNum}`,
+        min: weeksMap[k].min,
+        max: weeksMap[k].max,
+        sameTimeVal: k === currentWeekKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+        isToday: k === currentWeekKey
+      }));
 
     } else if (unit === "m") {
       subtitleHtml = `<span>Synthèse mensuelle des ${count} derniers mois (Évolution des saisons & amplitudes)</span>`;
+      const monthsMap = {};
       if (this._stats && this._stats.length) {
-        const monthsMap = {};
         for (const stat of this._stats) {
           const dt = new Date(stat.start);
           const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
@@ -2075,23 +2217,53 @@ class TemperatureRangeCard extends HTMLElement {
             }
           }
         }
-        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
-        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-        rowsList = sortedKeys.map((k, idx) => ({
-          label: monthsMap[k].label,
-          min: monthsMap[k].min,
-          max: monthsMap[k].max,
-          sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-          isToday: k === currentMonthKey
-        }));
       }
+
+      if (this._history && this._history.length) {
+        for (const pt of this._history) {
+          const val = parseFloat(pt.s);
+          if (isNaN(val)) continue;
+          const dt = new Date(pt.lu * 1000);
+          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+          let mName = dt.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
+          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
+          if (!monthsMap[key]) {
+            monthsMap[key] = { label: mName, min: val, max: val };
+          } else {
+            if (monthsMap[key].min === null || val < monthsMap[key].min) monthsMap[key].min = val;
+            if (monthsMap[key].max === null || val > monthsMap[key].max) monthsMap[key].max = val;
+          }
+        }
+      }
+
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      if (currentTempValue !== null) {
+        const curVal = parseFloat(currentTempValue);
+        let mName = now.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
+        mName = mName.charAt(0).toUpperCase() + mName.slice(1);
+        if (!monthsMap[currentMonthKey]) {
+          monthsMap[currentMonthKey] = { label: mName, min: curVal, max: curVal };
+        } else {
+          if (monthsMap[currentMonthKey].min === null || curVal < monthsMap[currentMonthKey].min) monthsMap[currentMonthKey].min = curVal;
+          if (monthsMap[currentMonthKey].max === null || curVal > monthsMap[currentMonthKey].max) monthsMap[currentMonthKey].max = curVal;
+        }
+      }
+
+      const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
+      rowsList = sortedKeys.map((k, idx) => ({
+        label: monthsMap[k].label,
+        min: monthsMap[k].min,
+        max: monthsMap[k].max,
+        sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+        isToday: k === currentMonthKey
+      }));
 
     } else if (unit === "y") {
       subtitleHtml = count === 1
         ? `<span>${localize("subtitle_year_single", this._hass)}</span>`
         : `<span>${localize("subtitle_years", this._hass, { count })}</span>`;
+      const yearsMap = {};
       if (this._stats && this._stats.length) {
-        const yearsMap = {};
         for (const stat of this._stats) {
           const dt = new Date(stat.start);
           const yKey = String(dt.getFullYear());
@@ -2106,16 +2278,27 @@ class TemperatureRangeCard extends HTMLElement {
             }
           }
         }
-        const sortedKeys = Object.keys(yearsMap).sort().reverse().slice(0, count);
-        const currentYearStr = String(new Date().getFullYear());
-        rowsList = sortedKeys.map((k, idx) => ({
-          label: k === currentYearStr ? `${k} (${localize("in_progress", this._hass)})` : k,
-          min: yearsMap[k].min,
-          max: yearsMap[k].max,
-          sameTimeVal: k === currentYearStr ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-          isToday: k === currentYearStr
-        }));
       }
+
+      const currentYearStr = String(now.getFullYear());
+      if (currentTempValue !== null) {
+        const curVal = parseFloat(currentTempValue);
+        if (!yearsMap[currentYearStr]) {
+          yearsMap[currentYearStr] = { label: currentYearStr, min: curVal, max: curVal };
+        } else {
+          if (yearsMap[currentYearStr].min === null || curVal < yearsMap[currentYearStr].min) yearsMap[currentYearStr].min = curVal;
+          if (yearsMap[currentYearStr].max === null || curVal > yearsMap[currentYearStr].max) yearsMap[currentYearStr].max = curVal;
+        }
+      }
+
+      const sortedKeys = Object.keys(yearsMap).sort().reverse().slice(0, count);
+      rowsList = sortedKeys.map((k, idx) => ({
+        label: k === currentYearStr ? `${k} (${localize("in_progress", this._hass)})` : k,
+        min: yearsMap[k].min,
+        max: yearsMap[k].max,
+        sameTimeVal: k === currentYearStr ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
+        isToday: k === currentYearStr
+      }));
     }
 
     // Calculer les bornes globales Min et Max pour la barre grise
@@ -2294,7 +2477,7 @@ class TemperatureRangeCard extends HTMLElement {
           <select id="roomSelect" class="entity-select" title="Choisir la zone">
             ${this._entitiesList.map(e => `
               <option value="${e.entity}" ${e.entity === this._selectedEntity ? "selected" : ""}>
-                ${e.name}
+                ${e.name || e.entity}
               </option>
             `).join("")}
           </select>
@@ -2673,7 +2856,10 @@ class TemperatureRangeCard extends HTMLElement {
         </div>
         ${scaleHtml}
         <div class="rows-container">
-          ${rowsHtml || '<div style="color:var(--secondary-text-color);font-size:13px;padding:8px 0;">${localize("loading", this._hass)}</div>'}
+          ${rowsHtml || (this._loading
+            ? `<div style="color:var(--secondary-text-color);font-size:13px;padding:8px 0;">${localize("loading", this._hass)}</div>`
+            : `<div style="color:var(--secondary-text-color);font-size:13px;padding:12px 10px;text-align:center;line-height:1.5;">${localize("no_stats_notice", this._hass)}</div>`
+          )}
         </div>
       </ha-card>
     `;
@@ -2686,6 +2872,8 @@ class TemperatureRangeCard extends HTMLElement {
     if (pSel) {
       pSel.addEventListener("change", (e) => this._onPeriodChange(e));
     }
+
+    this._isCardRendered = true;
   }
 }
 

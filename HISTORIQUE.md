@@ -71,6 +71,56 @@ Ce document retrace l'historique complet de conception, des choix d'architecture
 
 ---
 
+### 🏷️ Version 4.1.3 — Correctifs Écran Noir Lovelace, Assainissement `[object Object]`, Épuration & Synthèses Dynamiques (17/11/2026)
+* 📊 **Fiabilisation des vues Semaines, Mois et Années pour les nouveaux capteurs & consignes** :
+  * **Constat initial (Retour utilisateur consigne thermostat)** :
+    * Sur un nouveau capteur de consigne de thermostat, l'affichage en jour fonctionnait parfaitement mais les vues en semaines (10 semaines), mois ou années restaient bloquées sur le texte littéral brut `${localize("loading", this._hass)}`.
+  * **Causes racines identifiées** :
+    1. **Bogue d'interpolation JavaScript** : Le fallback de `rows-container` utilisait des apostrophes simples `'` au lieu de backticks `` ` ``, affichant la chaîne de template littérale au lieu du message localisé.
+    2. **Dépendance exclusive aux statistiques LTS (`recorder/statistics_during_period`)** : Pour les semaines, mois et années, la carte ne construisait des lignes que si l'API recorder renvoyait un tableau non vide. Or, pour un nouveau capteur ou une entité sans l'attribut `state_class: measurement` (comme de nombreuses consignes de thermostat ou template sensors), Home Assistant ne calcule aucune statistique à long terme, retournant un tableau vide !
+    3. **Absence de la période courante en direct** : Même si le capteur avait une valeur actuelle valide (ex: 20°C de consigne), la semaine en cours, le mois en cours et l'année en cours n'étaient pas générés si aucune statistique historique fermée n'était présente dans la base.
+  * **Solution technique & Optimisations** :
+    1. **Injection proactive de la période en cours** : Pour les semaines ISO, mois et années, la carte intègre systématiquement la période actuelle en direct avec la température ou consigne temps réel (`cur.state`), garantissant que la ligne en cours s'affiche immédiatement même pour un capteur créé il y a 5 minutes.
+    2. **Agrégation journalière pour les semaines ISO** : Les requêtes hebdomadaires s'appuient désormais sur les statistiques journalières (`period: "day"`) et l'historique brut des 7 derniers jours (`history/period`), universellement supportés et agrégés côté frontend par numéro de semaine ISO.
+    3. **Notification explicite d'absence de LTS** : Remplacement du chargement infini par un message propre d'information guidant l'utilisateur sur la nécessité de l'attribut `state_class: measurement` dans Home Assistant pour l'historique étendu.
+* 🎛️ **Épuration de l'éditeur visuel & Suppression du `localStorage` parasite** :
+  * **Constat initial (Retour utilisateur & Retour d'expérience mobile/PC)** :
+    * Sur mobile et sur PC, la carte s'ouvrait systématiquement sur des vues différentes (la dernière sélectionnée sur chaque appareil) au lieu du capteur configuré par défaut.
+    * Le champ "Capteur par défaut" et "Période par défaut" ne fonctionnait que lors de la toute première ouverture sur un navigateur vierge, puis était irrémédiablement écrasé par la mémoire locale `localStorage`.
+    * En cas d'utilisation de plusieurs cartes sur un même dashboard, les sélections de l'une écrasaient celles de l'autre via les clés globales de `localStorage`.
+  * **Arbitrage technique & Solution retenue (Option 2 - Simplification radicale)** :
+    * **Règle naturelle d'ouverture** : Le **premier capteur de la liste** et la **première durée active** font désormais strictement foi au chargement de la carte. Pour choisir quel capteur ou quelle durée afficher par défaut à l'ouverture, l'utilisateur le positionne simplement en première position via la poignée de réorganisation native `≡` (Drag & Drop) ou les boutons fléchés `▲` `▼`.
+    * **Suppression de `localStorage`** : La carte démarre toujours de manière stable, cohérente et prévisible sur son capteur n°1, quel que soit l'appareil (PC, tablette, mobile) et même avec plusieurs cartes distinctes sur une même page. Les menus déroulants de la carte permettent d'explorer temporairement d'autres capteurs et durées sans altérer l'état initial.
+    * **Éditeur visuel allégé** : Suppression des deux sélecteurs superflus *"Capteur par défaut"* et *"Période par défaut"* dans la section des paramètres généraux. L'éditeur est plus compact, plus rapide et supprime toute ambiguïté de configuration.
+* 🐛 **Résolution de l'écran noir lors de l'ajout d'une carte dans un dashboard** :
+  * **Constat initial (Retour utilisateur Discord)** :
+    * Lors de l'ajout de la carte dans un tableau de bord Home Assistant, le panneau d'aperçu de droite reste totalement noir / vide.
+    * Même en ajoutant un capteur valide (ex : capteur extérieur de pompe à chaleur Kronoterm), rien ne s'affiche.
+    * Le premier capteur et le sélecteur "Capteur par défaut" affichaient le texte corrompu `[object Object]`.
+  * **Causes racines identifiées** :
+    1. **Blocage fatal dans `set hass(hass)`** : La méthode contenait la garde `const cur = hass.states[this._selectedEntity]; if (!cur) return;`. Lorsque la carte venait d'être ajoutée ou si le premier capteur sélectionné n'existait pas encore dans `hass.states` (ou était corrompu), `set hass` retournait silencieusement sans jamais exécuter `this._render()`. Le Shadow DOM restait alors 100% vide, laissant la prévisualisation dans le noir complet. Même le bel écran d'aide *"Aucun capteur configuré"* ne pouvait pas apparaître !
+    2. **Absence de repli automatique (Fallback)** : Si le capteur sélectionné par défaut était invalide ou introuvable, la carte restait bloquée dessus et refusait de basculer vers les autres capteurs valides pourtant ajoutés par l'utilisateur (comme le capteur Kronoterm).
+    3. **Corruption `[object Object]` dans l'éditeur** : Lorsqu'une entité était passée sous forme d'objet complexe (ex : clé standard `entity_id` au lieu de `entity`, objet imbriqué ou événement UI non déstructuré), l'absence d'assainissement strict produisait une conversion en chaîne brute `String(object) = "[object Object]"`, polluant `this._config.default_entity` et la liste des entités.
+    4. **Déconnexion de `getStubConfig`** : `getStubConfig` ignorait la liste des entités sélectionnées par l'utilisateur dans l'onglet "Par entité" de Lovelace et initialisait toujours un tableau vide avec un titre en dur en français.
+  * **Solution technique & Optimisations** :
+    1. **Suppression du blocage dans `set hass(hass)` & Premier rendu garanti** :
+       - `this._render()` est systématiquement appelé si la carte n'a pas encore été rendue (`!this._isCardRendered`) ou si aucune entité n'est configurée, garantissant l'affichage immédiat de l'interface et du message d'aide chaleureux avec le thermomètre 🌡️.
+       - Si l'entité sélectionnée n'est pas trouvée dans `hass.states`, la carte recherche automatiquement dans `_entitiesList` le premier capteur valide présent dans `hass.states` et bascule dessus de manière transparente.
+    2. **Fonctions universelles d'assainissement (`extractEntityId`, `extractEntityName`, `normalizeEntities`)** :
+       - Extraction propre de l'identifiant d'entité quelle que soit la source (`entity`, `entity_id`, `value`, `id`, ou objet imbriqué).
+       - Élimination stricte des chaînes fantômes `"[object Object]"`, `"undefined"`, `"null"`.
+       - Remplacement automatique du libellé par `Capteur #N` si aucun nom ni entité n'est encore renseigné, éliminant tout affichage de `[object Object]`.
+    3. **Synchronisation automatique de `default_entity`** :
+       - Dès que l'utilisateur renseigne ou modifie un capteur, si `default_entity` était vide ou invalide, elle s'aligne automatiquement sur ce nouveau capteur.
+       - En cas de suppression d'un capteur (`delete`), `default_entity` se réaligne immédiatement sur les capteurs valides restants.
+    4. **`getStubConfig` intelligent & proactif** :
+       - Détecte prioritairement l'entité de température sélectionnée par l'utilisateur dans Lovelace.
+       - À défaut, recherche et sélectionne automatiquement la première sonde de température active trouvée dans Home Assistant (`device_class: temperature` ou unité `°C`/`°F`).
+       - Initialise dynamiquement le titre de la carte selon la langue de l'utilisateur (`card_title_default`).
+       - Résultat : dès le clic sur "+ Ajouter une carte", la carte s'affiche déjà préconfigurée, fonctionnelle et animée sans écran noir.
+
+---
+
 ### 🏷️ Version 4.1.2 — Correctifs Transition Heure d'Hiver (DST) & Stabilité Éditeur Visuel (17/11/2026)
 * 🐛 **Résolution de la perte de focus et des modifications successives dans l'éditeur visuel Lovelace** :
   * **Constat initial (Retour Forum HACF & Tests)** : 
