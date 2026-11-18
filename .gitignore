@@ -8,3 +8,5 @@ scratch*
 *.tmp
 AGENTS.md
 GEMINI.md
+dist/
+HISTORIQUE.md
