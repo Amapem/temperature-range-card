@@ -1,6 +1,9 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
- * v4.1.4 :
+ * v4.1.5 :
+- Barres étroites (journées plates ou amplitude < 6%) centrées sur leur plage : le point blanc "même heure" tombe désormais au milieu de la barre au lieu de son bord gauche
+- Le point blanc/actuel reste entièrement à l'intérieur de la barre (plus de débordement sur l'extrémité quand la valeur est au min ou au max)
+v4.1.4 :
 - Correction du point blanc "même heure" hors de la barre journalière : la plage min/max du jour intègre désormais l'état reporté à 00:00 et la valeur "même heure"
 - Journées plates (aucun changement d'état) : barre min = max = valeur reportée au lieu d'une barre vide
 v4.1.3 :
@@ -2519,10 +2522,13 @@ class TemperatureRangeCard extends HTMLElement {
       if (d.min !== null && d.max !== null) {
         leftPct = Math.max(0, Math.min(100, ((d.min - globalMin) / globalSpan) * 100));
         const rightPct = Math.max(0, Math.min(100, ((d.max - globalMin) / globalSpan) * 100));
-        widthPct = Math.max(6, rightPct - leftPct);
-        if (leftPct + widthPct > 100) {
-          leftPct = Math.max(0, 100 - widthPct);
+        const rawWidthPct = rightPct - leftPct;
+        widthPct = Math.max(6, rawWidthPct);
+        // Barre étroite (journée plate ou quasi) : la centrer sur sa plage pour qu'elle reste alignée avec le point blanc
+        if (rawWidthPct < widthPct) {
+          leftPct = leftPct + rawWidthPct / 2 - widthPct / 2;
         }
+        leftPct = Math.max(0, Math.min(leftPct, 100 - widthPct));
       }
 
       let dotHtml = "";
@@ -2532,7 +2538,12 @@ class TemperatureRangeCard extends HTMLElement {
         const dotTitle = d.isToday
           ? `${localize("current_temp", this._hass)} : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`
           : `${localize("same_time", this._hass)} (${nowTimeStr}) : ${d.sameTimeVal.toFixed(1)}${unitMeasure}`;
-        dotHtml = `<div class="${dotClass}" style="left:${dotPct}%;" title="${dotTitle}"></div>`;
+        // Le point reste entièrement à l'intérieur de la barre (jamais à cheval sur son extrémité arrondie)
+        const dotR = Math.ceil((d.isToday ? dotTodaySize : dotPastSize) / 2) + 1;
+        const dotLeft = (d.min !== null && d.max !== null)
+          ? `clamp(calc(${leftPct}% + ${dotR}px), ${dotPct}%, calc(${leftPct + widthPct}% - ${dotR}px))`
+          : `${dotPct}%`;
+        dotHtml = `<div class="${dotClass}" style="left:${dotLeft};" title="${dotTitle}"></div>`;
       }
 
       const todayClass = d.isToday ? "today" : "";
