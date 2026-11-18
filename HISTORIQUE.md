@@ -174,3 +174,11 @@ Ce document retrace l'historique complet de conception, des choix d'architecture
 * **Outillage Dédié** :
   * Création de `scripts/deploy_dev.py` : automatisation du test local direct sur Home Assistant (build dist, validation syntaxique, déploiement SCP `haos`, gzip et invalidation de cache via WebSocket) pour tester sans polluer GitHub.
   * Création de `AGENTS.md` et `GEMINI.md` formalisant le contexte, l'architecture et la règle stricte de validation utilisateur avant toute publication externe.
+
+---
+
+### 🏷️ Version 4.1.4 — Correctif point blanc « même heure » hors de la barre (18/11/2026)
+* 🐛 **Retour forum HACF (message #13, Gilles/OUARZA)** : le point blanc du lundi 16/11 apparaissait en dehors de la barre de température du jour.
+  * **Cause racine** : HA n'enregistre un point qu'à chaque changement d'état. Le min/max du jour n'était calculé qu'avec les points datés de ce jour, alors que la valeur « même heure » est le dernier état connu (potentiellement reporté de la veille).
+  * **Correctif** : le min/max du jour intègre l'état en vigueur à 00:00 et la valeur « même heure » ; les journées sans aucun changement affichent une barre min = max = valeur reportée.
+  * **Arbitrage** : un simple clamp du pourcentage n'aurait rien corrigé (le point était déjà borné à l'échelle globale) ; la correction porte sur les données, pas sur le rendu.

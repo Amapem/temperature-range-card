@@ -1,6 +1,9 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
- * v4.1.3 :
+ * v4.1.4 :
+- Correction du point blanc "même heure" hors de la barre journalière : la plage min/max du jour intègre désormais l'état reporté à 00:00 et la valeur "même heure"
+- Journées plates (aucun changement d'état) : barre min = max = valeur reportée au lieu d'une barre vide
+v4.1.3 :
  * - Fiabilisation des vues Semaines, Mois et Années : intégration en temps réel de la valeur actuelle et agrégation journalière pour les nouveaux capteurs
  * - Fallback robuste sur l'historique brut des états récents pour les synthèses hebdomadaires
  * - Remplacement du message de chargement infini par une notification explicite si aucune statistique LTS n'est disponible (attribut state_class)
@@ -2131,6 +2134,33 @@ class TemperatureRangeCard extends HTMLElement {
           dayMin = h.min;
           dayMax = h.max;
           hasDirectHist = true;
+
+          // L'état en vigueur à 00:00 (reporté de la veille) fait partie de la plage du jour
+          const dayStart = new Date(targetDate);
+          dayStart.setHours(0, 0, 0, 0);
+          const startTs = Math.floor(dayStart.getTime() / 1000);
+          if (startTs >= earliestHistTs) {
+            let carried = null;
+            for (const pt of this._history) {
+              if (pt.lu <= startTs) {
+                const v = parseFloat(pt.s);
+                if (!isNaN(v)) carried = v;
+              } else break;
+            }
+            if (carried !== null) {
+              dayMin = Math.min(dayMin, carried);
+              dayMax = Math.max(dayMax, carried);
+            }
+          }
+          // La valeur "même heure" doit toujours être dans la barre
+          if (sameTimeVal !== null) {
+            dayMin = Math.min(dayMin, sameTimeVal);
+            dayMax = Math.max(dayMax, sameTimeVal);
+          }
+        } else if (sameTimeVal !== null && !isToday) {
+          // Journée plate : aucun changement d'état enregistré, la valeur reportée fait foi
+          dayMin = sameTimeVal;
+          dayMax = sameTimeVal;
         }
 
         if (isToday && currentVal !== null) {
