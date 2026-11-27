@@ -41,11 +41,13 @@ A modern, iOS / Apple Weather styled temperature history and range card for Home
 - 🎛️ **Full Visual UI Editor (Lovelace)**:
   - **Ultra-compact sensor list**: 28px collapsible rows displaying clean custom names.
   - **Native Drag & Drop (`≡`)**: Effortlessly reorder sensors with the drag handle.
-  - **Quick Expand/Collapse**: Click any row to unfold details or use "Tout déplier / Tout replier".
+  - **Quick Expand/Collapse**: Click any row to unfold details or use "Expand All / Collapse All".
   - **Strict Sensor Filter**: Entity picker filters strictly for real temperature sensors (`device_class: temperature` or °C/°F units).
 - ⚪ **Reference Temperature Dots**:
   - White dot with dark border for current real-time temperature.
   - Comparison dots for past days at the exact same hour across full recorder retention.
+- 🧩 **Lovelace Sections & Auto-Refresh**:
+  - Native `getGridOptions` / `getCardSize` support for Home Assistant Sections dashboards and automatic background refresh every 15 minutes.
 - ⚡ **Zero Dependencies**: Pure Vanilla Web Components, ultra fast and lightweight.
 
 ---
@@ -98,14 +100,14 @@ entities:
 | :--- | :--- | :--- | :--- |
 | `type` | string | **Required** | `custom:temperature-range-card` |
 | `entities` | list | `[]` | List of sensor objects (`entity` and `name`) |
-| `title` | string | `Amplitudes & Comparatif Journalier` | Header title of the card |
+| `title` | string | Localized default | Header title of the card |
 | `default_entity` | string | First entity in list | Entity selected when the card is first loaded |
 | `default_period` | string | `10d` | Initial period view (any valid period, e.g. `10d`, `15d`, `20w`, `6m`) |
 | `show_scale` | boolean | `true` | Displays the graduated min/intermediate/max temperature scale |
 | `show_current` | boolean | `false` | Displays the current real-time temperature badge with a two-tier Apple Weather header layout |
 | `gradient_mode` | string | `global` | `global` (Apple Weather continuous scale) or `local` (0%-100% per bar) |
 | `bar_height` | number | `18` | Bar thickness in pixels (from 6 to 60 px) |
-| `available_periods` | list | `[10d, 20d, 30d, 20w, 12m]` | List of allowed period options (`<N>d`, `<N>w`, `<N>m`) |
+| `available_periods` | list | `[10d, 20d, 30d, 20w, 12m]` | List of allowed period options (`<N>d`, `<N>w`, `<N>m`, `<N>y`) |
 
 ---
 

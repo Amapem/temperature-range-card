@@ -1,86 +1,49 @@
 /**
  * Temperature History & Range Card (Style iOS Weather / Apple Weather)
- * v4.1.5 :
-- Barres étroites (journées plates ou amplitude < 6%) centrées sur leur plage : le point blanc "même heure" tombe désormais au milieu de la barre au lieu de son bord gauche
-- Le point blanc/actuel reste entièrement à l'intérieur de la barre (plus de débordement sur l'extrémité quand la valeur est au min ou au max)
-v4.1.4 :
-- Correction du point blanc "même heure" hors de la barre journalière : la plage min/max du jour intègre désormais l'état reporté à 00:00 et la valeur "même heure"
-- Journées plates (aucun changement d'état) : barre min = max = valeur reportée au lieu d'une barre vide
-v4.1.3 :
- * - Fiabilisation des vues Semaines, Mois et Années : intégration en temps réel de la valeur actuelle et agrégation journalière pour les nouveaux capteurs
- * - Fallback robuste sur l'historique brut des états récents pour les synthèses hebdomadaires
- * - Remplacement du message de chargement infini par une notification explicite si aucune statistique LTS n'est disponible (attribut state_class)
- * - Correction du bug d'échappement ${localize("loading", this._hass)} affiché en texte littéral
- * - Épuration de l'éditeur visuel : suppression des sélecteurs redondants "Capteur par défaut" et "Période par défaut"
- * - Comportement naturel et prévisible : le 1er capteur et la 1ère durée de la liste font foi à l'ouverture
- * - Élimination de la mémoire locale (localStorage) parasite responsable des incohérences inter-appareils et multi-cartes
- * - Résolution de l'écran noir lors de l'ajout d'une carte dans Lovelace (élimination du blocage silencieux dans set hass)
- * - Bascule automatique et intelligente vers les capteurs disponibles en cas d'entité initiale manquante ou invalide
- * - Élimination de l'affichage [object Object] dans l'éditeur visuel et assainissement strict des entités et noms
- * - Détection dynamique intelligente dans getStubConfig : reconnaissance des capteurs passés par Lovelace ou découverte automatique des sondes de température existantes
- * - Titre par défaut internationalisé selon la locale Home Assistant lors de la création de la carte
- * v4.1.2 :
- * - Résolution de la perte de focus et des modifications bloquées dans l'éditeur visuel Lovelace
- * - Découplage des événements de saisie (input direct, change/blur vers Lovelace) et immutabilité (structuredClone)
- * - Mises à jour DOM ciblées et réactives en direct sans destruction du Shadow DOM
- * - Correction du bug de duplication du dernier dimanche d'octobre (changement d'heure / DST)
- *   Remplacement de la soustraction fixe de 24h (86400000ms) par un décalage calendaire strict (setDate)
- *   Résolution des barres fantômes vides (--°) lors des transitions heure d'été / heure d'hiver
- * v4.1.1 :
- * - Suppression de l'alias de balise redondant pour préserver un nom unique strict ('custom:temperature-range-card')
- *   et éliminer toute erreur DOMException / CustomElementRegistry dans Lovelace
- * v4.1.0 :
- * - Affichage élégant de la température actuelle en direct (show_current) façon Apple Weather
- * - Disposition d'en-tête responsive sur 2 niveaux avec badge de température grand format
- * - Option activable/désactivable directement dans l'éditeur visuel Lovelace
- * - Prise en charge des périodes annuelles (<N>y, ex: 1y, 2y, 3y, 5y) avec regroupement par année civile
- * - Tri chronologique étendu (Jours -> Semaines -> Mois -> Années)
- * v4.0.0 (Global Release) :
- * - Internationalisation native complète (i18n) dans 6 langues :
- *   - English (en), Français (fr), Deutsch (de), Español (es), Italiano (it), Nederlands (nl)
- *   - Détection automatique de la langue utilisateur via Home Assistant (hass.locale.language)
- *   - Formatage des dates dynamique multilingue (toLocaleDateString avec la locale active)
- * - Typographie et espacements adaptatifs selon l'épaisseur des barres (gain jusqu'à 45% en hauteur)
- * - En-têtes de colonnes clairs et explicites MIN et MAX au-dessus des températures
- * - Dégradé Continu Global (Style Apple Weather) avec alignement vertical parfait
- * - Épaisseur des barres 100% personnalisable et libre (bar_height)
- * - Éditeur visuel Lovelace ultra-compact (hauteur réduite de plus de 50%)
- * - Liste des capteurs repliable (28px) avec réorganisation native par Glisser-Déposer (Drag & Drop)
- * - Création de carte vierge sans capteur résiduel polluant et filtrage strict des températures
- * - Tri chronologique automatique et manuel des durées (Jours -> Semaines -> Mois)
- * - Détection dynamique réelle de la rétention recorder pour les points comparatifs
- * - Zéro dépendance : Vanilla Web Components natif ultra rapide
- * - Dégradé Continu Global (Style Apple Weather) avec alignement vertical parfait :
- *   - Mode 'global' (défaut) : une température donnée a toujours la même couleur sur toutes les lignes et sous l\'échelle
- *   - Mode 'local' (optionnel) : chaque barre déroule toute la palette de son min à son max
- *   - Sélecteur direct dans l\'éditeur visuel
- * - Épaisseur des barres 100% personnalisable et libre (bar_height) :
- *   - Valeur libre en pixels (ex: 6 à 60 px, défaut 18px)
- *   - 6 Presets rapides dans l\'éditeur : 10px Fine, 14px Standard, 18px Défaut, 24px Épaisse, 28px Très épaisse, 34px Extra large
- *   - Dimensionnement adaptatif et proportionnel des repères et puces temporelles
- * - v3.1.1 :
- * - Tri chronologique automatique et manuel des durées (Jours -> Semaines -> Mois par ordre croissant) :
- *   - 1. Jours croissants (ex: 2d, 7d, 10d, 14d, 15d, 20d, 30d, 60d)
- *   - 2. Semaines croissantes (ex: 1w, 4w, 8w, 10w, 20w, 52w)
- *   - 3. Mois croissants (ex: 3m, 6m, 12m, 24m)
- * - Bouton "⇅ Trier" dans l'éditeur visuel et tri automatique lors de l'ajout
- * - Tri automatique du menu déroulant dans la carte principale
- * - Détection dynamique réelle de la limite d'historique pour le point "Même heure" :
- *   - Utilise l'historique brut réel de la base sans limite arbitraire
- *   - Affiche le point tant que la base dispose de données réelles (10-11 jours selon rétention recorder)
- *   - S'estompe naturellement dès que les données brutes ont été purgées
- * - Durées entièrement personnalisables et dynamiques (<nombre><unité>)
- * - Éditeur visuel interactif complet (TemperatureRangeCardEditor)
- * - Échelle des températures graphique alignée au pixel près avec guides verticaux
- * - Zéro dépendance : Vanilla Web Components natif ultra rapide
+ * v5.0.0 : audit de code
+ *  - Échappement HTML de toutes les données utilisateur / Home Assistant (anti-injection)
+ *  - Internationalisation complète (plus aucun texte français codé en dur)
+ *  - Protection contre les réponses concurrentes (changement rapide de capteur / période)
+ *  - Rafraîchissement périodique, getCardSize / getGridOptions, rendu différé si menu ouvert
+ *  - Refactorisation (constantes, agrégation unique semaines / mois / années, helpers WebSocket)
+ * Historique complet des versions : README et releases GitHub.
  */
 
-function getISOWeekNumber(d) {
+const DEFAULT_PERIODS = ["10d", "20d", "30d", "20w", "12m"];
+const DEFAULT_PERIOD = "10d";
+const DEFAULT_BAR_HEIGHT = 18;
+const MIN_BAR_HEIGHT = 6;
+const MAX_BAR_HEIGHT = 60;
+const MIN_BAR_WIDTH_PCT = 6;
+const MS_PER_DAY = 86400000;
+const HISTORY_MAX_DAYS = 31;
+const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const TEMPERATURE_UNITS = ["°C", "°F", "K"];
+const BAR_GRADIENT = "linear-gradient(90deg, #43a047 0%, #81c784 25%, #fdd835 55%, #fb8c00 80%, #e53935 100%)";
+
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
+function escapeHtml(value) {
+  return String(value === undefined || value === null ? "" : value).replace(/[&<>"']/g, c => HTML_ESCAPES[c]);
+}
+
+function clampBarHeight(value) {
+  return Math.max(MIN_BAR_HEIGHT, Math.min(MAX_BAR_HEIGHT, parseInt(value, 10) || DEFAULT_BAR_HEIGHT));
+}
+
+function getISOWeekInfo(d) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return {
+    year: date.getUTCFullYear(),
+    week: Math.ceil((((date - yearStart) / MS_PER_DAY) + 1) / 7)
+  };
+}
+
+function getISOWeekNumber(d) {
+  return getISOWeekInfo(d).week;
 }
 
 function parsePeriod(periodStr) {
@@ -100,42 +63,48 @@ function parsePeriod(periodStr) {
   return { count: 10, unit: "d", raw: "10d" };
 }
 
+function cleanString(val) {
+  if (typeof val !== "string") return "";
+  const trimmed = val.trim();
+  return (trimmed === "[object Object]" || trimmed === "undefined" || trimmed === "null") ? "" : trimmed;
+}
+
 function extractEntityId(val) {
   if (!val) return "";
-  if (typeof val === "string") {
-    const trimmed = val.trim();
-    return (trimmed === "[object Object]" || trimmed === "undefined" || trimmed === "null") ? "" : trimmed;
-  }
-  if (typeof val === "object" && val !== null) {
-    const id = val.entity_id || val.entity || val.value || val.id || "";
-    return extractEntityId(id);
+  if (typeof val === "string") return cleanString(val);
+  if (typeof val === "object") {
+    return extractEntityId(val.entity_id || val.entity || val.value || val.id || "");
   }
   return "";
 }
 
 function extractEntityName(nameVal) {
-  if (!nameVal) return "";
-  if (typeof nameVal === "string") {
-    const trimmed = nameVal.trim();
-    return (trimmed === "[object Object]" || trimmed === "undefined" || trimmed === "null") ? "" : trimmed;
-  }
-  return "";
+  return cleanString(nameVal);
 }
 
-function normalizeEntities(rawEntities) {
+// Température : unité ou device_class reconnus (attributs uniquement)
+function isTemperatureEntity(stateObj) {
+  const attrs = (stateObj && stateObj.attributes) || {};
+  return TEMPERATURE_UNITS.includes(attrs.unit_of_measurement) || attrs.device_class === "temperature";
+}
+
+// forEditor : conserve les lignes sans entité (capteur en cours d'ajout) ; sinon nom par défaut = id sans préfixe
+function normalizeEntities(rawEntities, { forEditor = false } = {}) {
   if (!Array.isArray(rawEntities)) return [];
   return rawEntities.map(e => {
     if (!e) return null;
+    let id = "";
+    let name = "";
     if (typeof e === "string") {
-      const id = extractEntityId(e);
-      return id ? { entity: id, name: "" } : null;
+      id = extractEntityId(e);
+    } else if (typeof e === "object") {
+      id = extractEntityId(e.entity || e.entity_id || e.value || e);
+      name = extractEntityName(e.name);
+    } else {
+      return null;
     }
-    if (typeof e === "object" && e !== null) {
-      const id = extractEntityId(e.entity || e.entity_id || e.value || e);
-      const name = extractEntityName(e.name);
-      return { entity: id, name: name };
-    }
-    return null;
+    if (forEditor) return (id || typeof e === "object") ? { entity: id, name } : null;
+    return id ? { entity: id, name: name || id.replace("sensor.", "") } : null;
   }).filter(Boolean);
 }
 
@@ -536,42 +505,74 @@ const TRANSLATIONS = {
   }
 };
 
+// Clés ajoutées lors de l'audit v5.0.0 (textes auparavant codés en dur en français)
+const EXTRA_TRANSLATIONS = {
+  en: {
+    sensor_n: "Sensor #{index}", remove: "Remove", choose_zone: "Choose zone", period_grouping: "Period & grouping",
+    min: "Min", max: "Max", legend_current: "Current temp ({time})", legend_same_time: "Same time ({time}) past days",
+    legend_same_time_recent: "Same time (last {count} days)", legend_minmax: "Min-Max bars over {count} days",
+    week_label: "Week {week}", week_label_current: "Wk {week} (Today)", entity_placeholder: "sensor.my_temperature_sensor"
+  },
+  fr: {
+    sensor_n: "Capteur n°{index}", remove: "Retirer", choose_zone: "Choisir la zone", period_grouping: "Période & regroupement",
+    min: "Min", max: "Max", legend_current: "T° actuelle ({time})", legend_same_time: "Même heure ({time}) les jours passés",
+    legend_same_time_recent: "Même heure (sur les {count} jours récents)", legend_minmax: "Barres Min-Max sur {count} jours",
+    week_label: "Semaine {week}", week_label_current: "Sem. {week} (Auj.)", entity_placeholder: "sensor.mon_capteur_temperature"
+  },
+  de: {
+    sensor_n: "Sensor Nr. {index}", remove: "Entfernen", choose_zone: "Zone wählen", period_grouping: "Zeitraum & Gruppierung",
+    min: "Min", max: "Max", legend_current: "Aktuelle Temp. ({time})", legend_same_time: "Gleiche Zeit ({time}) vergangene Tage",
+    legend_same_time_recent: "Gleiche Zeit (letzte {count} Tage)", legend_minmax: "Min-Max-Balken über {count} Tage",
+    week_label: "Woche {week}", week_label_current: "Wo. {week} (Heute)", entity_placeholder: "sensor.mein_temperatursensor"
+  },
+  es: {
+    sensor_n: "Sensor n.º {index}", remove: "Quitar", choose_zone: "Elegir zona", period_grouping: "Período y agrupación",
+    min: "Mín", max: "Máx", legend_current: "T° actual ({time})", legend_same_time: "Misma hora ({time}) días anteriores",
+    legend_same_time_recent: "Misma hora (últimos {count} días)", legend_minmax: "Barras Mín-Máx sobre {count} días",
+    week_label: "Semana {week}", week_label_current: "Sem. {week} (Hoy)", entity_placeholder: "sensor.mi_sensor_temperatura"
+  },
+  it: {
+    sensor_n: "Sensore n. {index}", remove: "Rimuovi", choose_zone: "Scegli la zona", period_grouping: "Periodo e raggruppamento",
+    min: "Min", max: "Max", legend_current: "T° attuale ({time})", legend_same_time: "Stessa ora ({time}) giorni passati",
+    legend_same_time_recent: "Stessa ora (ultimi {count} giorni)", legend_minmax: "Barre Min-Max su {count} giorni",
+    week_label: "Settimana {week}", week_label_current: "Sett. {week} (Oggi)", entity_placeholder: "sensor.mio_sensore_temperatura"
+  },
+  nl: {
+    sensor_n: "Sensor #{index}", remove: "Verwijderen", choose_zone: "Zone kiezen", period_grouping: "Periode & groepering",
+    min: "Min", max: "Max", legend_current: "Huidige temp. ({time})", legend_same_time: "Zelfde tijd ({time}) afgelopen dagen",
+    legend_same_time_recent: "Zelfde tijd (laatste {count} dagen)", legend_minmax: "Min-Max-balken over {count} dagen",
+    week_label: "Week {week}", week_label_current: "Wk {week} (Vandaag)", entity_placeholder: "sensor.mijn_temperatuursensor"
+  }
+};
+for (const lang of Object.keys(EXTRA_TRANSLATIONS)) {
+  Object.assign(TRANSLATIONS[lang], EXTRA_TRANSLATIONS[lang]);
+}
+
+function getRawLang(hass, fallback) {
+  return (hass && (hass.locale?.language || hass.language)) || fallback;
+}
+
 function localize(key, hass, placeholders = {}) {
-  const rawLang = (hass && (hass.locale?.language || hass.language)) || "en";
-  const lang = rawLang.toLowerCase().split("-")[0];
-  const dict = TRANSLATIONS[lang] || TRANSLATIONS["en"];
-  let text = dict[key] || TRANSLATIONS["en"][key] || key;
+  const lang = getRawLang(hass, "en").toLowerCase().split("-")[0];
+  const dict = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  let text = dict[key] || TRANSLATIONS.en[key] || key;
   for (const [k, v] of Object.entries(placeholders)) {
-    text = text.replace(new RegExp(`\\{${k}\\}`, "g"), v);
+    text = text.split(`{${k}}`).join(String(v));
   }
   return text;
 }
 
 function getUserLocale(hass) {
-  return (hass && (hass.locale?.language || hass.language)) || "en-US";
+  return getRawLang(hass, "en-US");
 }
+
+const PERIOD_ICONS = { d: "📅 ", w: "🗓️ ", m: "🗓️ ", y: "📆 " };
 
 function formatPeriodLabel(periodStr, hass) {
   const p = parsePeriod(periodStr);
-  if (!p) return periodStr;
-  const count = p.count;
-  const icon = p.unit === "d" ? "📅 " : (p.unit === "y" ? "📆 " : "🗓️ ");
-  if (p.unit === "d") {
-    const lbl = count === 1 ? localize("period_d_single", hass, { count }) : localize("period_d_plural", hass, { count });
-    return `${icon}${lbl}`;
-  } else if (p.unit === "w") {
-    const lbl = count === 1 ? localize("period_w_single", hass, { count }) : localize("period_w_plural", hass, { count });
-    return `${icon}${lbl}`;
-  } else if (p.unit === "m") {
-    const lbl = count === 1 ? localize("period_m_single", hass, { count }) : localize("period_m_plural", hass, { count });
-    return `${icon}${lbl}`;
-  } else if (p.unit === "y") {
-    const lbl = count === 1 ? localize("period_y_single", hass, { count }) : localize("period_y_plural", hass, { count });
-    return `${icon}${lbl}`;
-  }
-  return periodStr;
+  const key = `period_${p.unit}_${p.count === 1 ? "single" : "plural"}`;
+  return `${PERIOD_ICONS[p.unit] || ""}${localize(key, hass, { count: p.count })}`;
 }
-
 
 function sortPeriods(periodList) {
   if (!Array.isArray(periodList)) return [];
@@ -604,24 +605,24 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
   setConfig(config) {
     const newConfig = Object.assign({
-      title: "Comparatif & Amplitudes Thermiques",
+      title: "",
       default_period: "10d",
       show_scale: true,
       show_current: false,
       gradient_mode: "global",
-      bar_height: 18,
-      available_periods: ["10d", "20d", "30d", "20w", "12m"],
+      bar_height: DEFAULT_BAR_HEIGHT,
+      available_periods: [...DEFAULT_PERIODS],
       entities: []
     }, structuredClone(config));
 
     if (!Array.isArray(newConfig.available_periods) || newConfig.available_periods.length === 0) {
-      newConfig.available_periods = ["10d", "20d", "30d", "20w", "12m"];
+      newConfig.available_periods = [...DEFAULT_PERIODS];
     } else {
       newConfig.available_periods = sortPeriods(newConfig.available_periods);
     }
 
     if (Array.isArray(newConfig.entities)) {
-      newConfig.entities = normalizeEntities(newConfig.entities);
+      newConfig.entities = normalizeEntities(newConfig.entities, { forEditor: true });
     } else if (newConfig.entity) {
       const singleId = extractEntityId(newConfig.entity);
       newConfig.entities = singleId ? [{ entity: singleId, name: extractEntityName(newConfig.name) }] : [];
@@ -711,27 +712,27 @@ class TemperatureRangeCardEditor extends HTMLElement {
     const showScale = this._config.show_scale !== false;
     const showCurrent = this._config.show_current === true;
     const gradientMode = (this._config.gradient_mode === "local") ? "local" : "global";
-    const barHeight = Math.max(6, Math.min(60, parseInt(this._config.bar_height, 10) || 18));
-    const availablePeriods = sortPeriods(this._config.available_periods || ["10d", "20d", "30d", "20w", "12m"]);
+    const barHeight = clampBarHeight(this._config.bar_height);
+    const availablePeriods = sortPeriods(this._config.available_periods || [...DEFAULT_PERIODS]);
     const commonPresets = sortPeriods(["2d", "7d", "10d", "14d", "15d", "20d", "30d", "1w", "4w", "8w", "10w", "20w", "3m", "6m", "12m", "24m", "1y", "2y", "3y", "5y"]);
 
     const entitiesHtml = entities.map((item, index) => {
       const isExpanded = this._expandedSet && this._expandedSet.has(index);
       const safeName = extractEntityName(item.name);
       const safeEntity = extractEntityId(item.entity);
-      const displayName = safeName || safeEntity || `Capteur #${index + 1}`;
+      const displayName = safeName || safeEntity || localize("sensor_n", this._hass, { index: index + 1 });
       return `
         <div class="entity-card ${isExpanded ? "expanded" : "collapsed"}" data-index="${index}" draggable="true">
           <div class="entity-card-header" data-action="toggle-expand" data-index="${index}">
             <div class="entity-card-title">
               <span class="entity-icon">🌡️</span>
-              <span class="entity-title-text" title="${displayName}">${displayName}</span>
+              <span class="entity-title-text" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
             </div>
-            <div class="entity-actions" onclick="event.stopPropagation()">
-              <button class="btn-icon" data-action="up" data-index="${index}" title="Monter" ${index === 0 ? "disabled" : ""}>▲</button>
-              <button class="btn-icon" data-action="down" data-index="${index}" title="Descendre" ${index === entities.length - 1 ? "disabled" : ""}>▼</button>
-              <button class="btn-icon btn-delete" data-action="delete" data-index="${index}" title="Supprimer">✕</button>
-              <button class="btn-icon btn-chevron" data-action="toggle-expand" data-index="${index}" title="${isExpanded ? "Replier" : "Déplier"}">
+            <div class="entity-actions">
+              <button class="btn-icon" data-action="up" data-index="${index}" title="${localize("move_up", this._hass)}" aria-label="${localize("move_up", this._hass)}" ${index === 0 ? "disabled" : ""}>▲</button>
+              <button class="btn-icon" data-action="down" data-index="${index}" title="${localize("move_down", this._hass)}" aria-label="${localize("move_down", this._hass)}" ${index === entities.length - 1 ? "disabled" : ""}>▼</button>
+              <button class="btn-icon btn-delete" data-action="delete" data-index="${index}" title="${localize("delete_sensor", this._hass)}" aria-label="${localize("delete_sensor", this._hass)}">✕</button>
+              <button class="btn-icon btn-chevron" data-action="toggle-expand" data-index="${index}" title="${localize(isExpanded ? "collapse" : "expand", this._hass)}" aria-label="${localize(isExpanded ? "collapse" : "expand", this._hass)}">
                 <span class="chevron-arrow ${isExpanded ? "open" : ""}">▼</span>
               </button>
               <span class="drag-handle" title="${localize("drag_handle_title", this._hass)}">
@@ -748,7 +749,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
             </div>
             <div class="form-group" style="margin-top: 6px;">
               <label class="form-label">${localize("custom_name", this._hass)}</label>
-              <input type="text" class="form-input entity-name-input" data-index="${index}" value="${item.name || ""}" placeholder="${localize("custom_name_placeholder", this._hass)}">
+              <input type="text" class="form-input entity-name-input" data-index="${index}" value="${escapeHtml(item.name || "")}" placeholder="${localize("custom_name_placeholder", this._hass)}">
             </div>
           </div>
         </div>
@@ -1137,7 +1138,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
           
           <div class="form-group">
             <label class="form-label">${localize("card_title_label", this._hass)}</label>
-            <input type="text" id="title-input" class="form-input" value="${this._config.title || ""}" placeholder="${localize("card_title_placeholder", this._hass)}">
+            <input type="text" id="title-input" class="form-input" value="${escapeHtml(this._config.title || "")}" placeholder="${localize("card_title_placeholder", this._hass)}">
           </div>
         </div>
 
@@ -1171,7 +1172,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
 
           <div class="form-group" style="margin-top: 6px;">
             <div class="form-label-row">
-              <span class="form-label">Épaisseur des barres : <strong>${barHeight} px</strong></span>
+              <span class="form-label">${localize("bar_thickness_label", this._hass)} : <strong>${barHeight} px</strong></span>
               <div style="display:flex; align-items:center; gap:4px;">
                 <input type="number" id="bar-height-input" class="form-input" style="width:60px; height:24px; padding:1px 5px; text-align:center; font-size:12px;" min="6" max="60" step="1" value="${barHeight}">
                 <span style="font-size:11px; color:var(--secondary-text-color);">px</span>
@@ -1199,7 +1200,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
             ${availablePeriods.map((p, idx) => `
               <div class="period-chip">
                 <span>${formatPeriodLabel(p, this._hass)}</span>
-                <span class="chip-remove" data-action="remove-period" data-index="${idx}" title="Retirer">✕</span>
+                <span class="chip-remove" data-action="remove-period" data-index="${idx}" title="${localize("remove", this._hass)}" aria-label="${localize("remove", this._hass)}">✕</span>
               </div>
             `).join("")}
           </div>
@@ -1209,7 +1210,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
             <div class="pills-group">
               ${commonPresets.filter(pr => !availablePeriods.some(ap => parsePeriod(ap).raw === parsePeriod(pr).raw)).map(pr => `
                 <span class="preset-badge" data-action="add-preset" data-period="${pr}">+ ${formatPeriodLabel(pr, this._hass)} (${pr})</span>
-              `).join("") || '<span style="font-size:11px;color:var(--secondary-text-color);">${localize("all_added", this._hass)}</span>'}
+              `).join("") || `<span style="font-size:11px;color:var(--secondary-text-color);">${localize("all_added", this._hass)}</span>`}
             </div>
           </div>
 
@@ -1232,7 +1233,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
           </div>
 
           <div class="entities-list">
-            ${entitiesHtml || '<div style="color:var(--secondary-text-color); font-size:12px; font-style:italic; padding:6px 0;">${localize("no_sensors_configured", this._hass)}</div>'}
+            ${entitiesHtml || `<div style="color:var(--secondary-text-color); font-size:12px; font-style:italic; padding:6px 0;">${localize("no_sensors_configured", this._hass)}</div>`}
           </div>
 
           <button id="btn-add-sensor" class="btn-add-sensor">
@@ -1287,7 +1288,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
     const heightInput = this.shadowRoot.getElementById("bar-height-input");
     if (heightInput) {
       heightInput.addEventListener("input", (e) => {
-        const val = Math.max(6, Math.min(60, parseInt(e.target.value, 10) || 18));
+        const val = clampBarHeight(e.target.value);
         this._config.bar_height = val;
 
         const heightLabel = this.shadowRoot.querySelector(".form-label-row .form-label strong");
@@ -1300,7 +1301,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
         });
       });
       heightInput.addEventListener("change", (e) => {
-        const val = Math.max(6, Math.min(60, parseInt(e.target.value, 10) || 18));
+        const val = clampBarHeight(e.target.value);
         this._config.bar_height = val;
         this._fireConfigChanged();
       });
@@ -1406,14 +1407,11 @@ class TemperatureRangeCardEditor extends HTMLElement {
         picker.includeDomains = ["sensor"];
         picker.entityFilter = (stateObj) => {
           if (!stateObj) return false;
-          const attrs = stateObj.attributes || {};
-          const uom = attrs.unit_of_measurement;
-          if (uom === "°C" || uom === "°F" || uom === "K") return true;
-          if (attrs.device_class === "temperature") return true;
+          if (isTemperatureEntity(stateObj)) return true;
           const id = (stateObj.entity_id || "").toLowerCase();
           return id.includes("temp_") || id.includes("_temp") || id.includes("temperature");
         };
-        picker.label = "Entité Home Assistant";
+        picker.label = localize("ha_entity", this._hass);
         picker.required = true;
         picker.addEventListener("value-changed", (ev) => {
           ev.stopPropagation();
@@ -1437,7 +1435,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
         input.type = "text";
         input.className = "form-input";
         input.value = item.entity || "";
-        input.placeholder = "sensor.mon_capteur_temperature";
+        input.placeholder = localize("entity_placeholder", this._hass);
         input.addEventListener("change", (ev) => {
           const newEntity = extractEntityId(ev.target.value);
           item.entity = newEntity;
@@ -1464,7 +1462,7 @@ class TemperatureRangeCardEditor extends HTMLElement {
           if (card) {
             const titleEl = card.querySelector(".entity-title-text");
             if (titleEl) {
-              const displayName = ev.target.value || this._config.entities[idx].entity || `Capteur #${idx + 1}`;
+              const displayName = ev.target.value || this._config.entities[idx].entity || localize("sensor_n", this._hass, { index: idx + 1 });
               titleEl.textContent = displayName;
               titleEl.title = displayName;
             }
@@ -1575,6 +1573,11 @@ class TemperatureRangeCardEditor extends HTMLElement {
       });
     });
 
+    // Empêcher le clic sur la zone d'actions de déplier/replier la carte (remplace l'ancien onclick inline)
+    this.shadowRoot.querySelectorAll(".entity-actions").forEach(el => {
+      el.addEventListener("click", (e) => e.stopPropagation());
+    });
+
     // Écouteurs pour les boutons d'action (monter, descendre, supprimer)
     const actionBtns = this.shadowRoot.querySelectorAll(".btn-icon");
     actionBtns.forEach(btn => {
@@ -1668,76 +1671,42 @@ class TemperatureRangeCard extends HTMLElement {
   }
 
   static getStubConfig(hass, entities, entitiesFallback) {
-    let candidateEntity = "";
-    const list = Array.isArray(entities) && entities.length
-      ? entities
-      : (Array.isArray(entitiesFallback) && entitiesFallback.length ? entitiesFallback : []);
-
-    if (hass && hass.states) {
-      candidateEntity = list.find(id => {
-        const s = hass.states[id];
-        if (!s) return false;
-        const attrs = s.attributes || {};
-        return (attrs.unit_of_measurement === "°C" || attrs.unit_of_measurement === "°F" || attrs.device_class === "temperature");
-      }) || "";
-
-      if (!candidateEntity) {
-        const allIds = Object.keys(hass.states);
-        candidateEntity = allIds.find(id => {
-          if (!id.startsWith("sensor.")) return false;
-          const s = hass.states[id];
-          const attrs = s?.attributes || {};
-          return attrs.device_class === "temperature" || attrs.unit_of_measurement === "°C" || attrs.unit_of_measurement === "°F";
-        }) || "";
-      }
-    }
-
-    const defaultEntities = candidateEntity ? [{
-      entity: candidateEntity,
-      name: hass?.states[candidateEntity]?.attributes?.friendly_name || candidateEntity.replace("sensor.", "")
-    }] : [];
-
-    const defaultLang = hass?.locale?.language || "fr";
-    const defaultTitle = TRANSLATIONS[defaultLang]?.card_title_default || TRANSLATIONS.fr.card_title_default;
+    const states = (hass && hass.states) || {};
+    const list = [entities, entitiesFallback].find(l => Array.isArray(l) && l.length) || [];
+    const isTemp = (id) => isTemperatureEntity(states[id]);
+    const candidate = list.find(isTemp)
+      || Object.keys(states).find(id => id.startsWith("sensor.") && isTemp(id))
+      || "";
 
     return {
       type: "custom:temperature-range-card",
-      title: defaultTitle,
+      title: localize("card_title_default", hass),
       show_scale: true,
       show_current: false,
       gradient_mode: "global",
-      bar_height: 18,
-      available_periods: ["10d", "20d", "30d", "20w", "12m"],
-      entities: defaultEntities
+      bar_height: DEFAULT_BAR_HEIGHT,
+      available_periods: [...DEFAULT_PERIODS],
+      entities: candidate ? [{
+        entity: candidate,
+        name: states[candidate]?.attributes?.friendly_name || candidate.replace("sensor.", "")
+      }] : []
     };
   }
 
   setConfig(config) {
     this.config = Object.assign({
-      title: "Comparatif & Amplitudes Thermiques",
+      title: "",
       show_scale: true,
       show_current: false,
-      default_period: "10d",
+      default_period: DEFAULT_PERIOD,
       gradient_mode: "global",
-      bar_height: 18,
-      available_periods: ["10d", "20d", "30d", "20w", "12m"]
+      bar_height: DEFAULT_BAR_HEIGHT,
+      available_periods: [...DEFAULT_PERIODS]
     }, config);
 
     // Initialiser et assainir strictement les entités
-    if (this.config.entities && Array.isArray(this.config.entities)) {
-      this._entitiesList = this.config.entities.map(e => {
-        if (typeof e === "string") {
-          const id = extractEntityId(e);
-          return id ? { entity: id, name: id.replace("sensor.", "") } : null;
-        }
-        if (typeof e === "object" && e !== null) {
-          const id = extractEntityId(e.entity || e.entity_id || e.value || e);
-          if (!id) return null;
-          const name = extractEntityName(e.name) || id.replace("sensor.", "");
-          return { entity: id, name: name };
-        }
-        return null;
-      }).filter(Boolean);
+    if (Array.isArray(this.config.entities)) {
+      this._entitiesList = normalizeEntities(this.config.entities);
     } else if (this.config.entity) {
       const id = extractEntityId(this.config.entity);
       this._entitiesList = id ? [{ entity: id, name: extractEntityName(this.config.name) || id.replace("sensor.", "") }] : [];
@@ -1745,11 +1714,7 @@ class TemperatureRangeCard extends HTMLElement {
       this._entitiesList = [];
     }
 
-    const storageEntityKey = this._getStorageKey("entity");
-    let savedEntity = null;
-    try {
-      savedEntity = localStorage.getItem(storageEntityKey) || localStorage.getItem("temp_range_selected_entity");
-    } catch (_) {}
+    const savedEntity = this._readStorage("entity");
     const validSavedEntity = this._entitiesList.some(e => e.entity === savedEntity) ? savedEntity : null;
     const configDefault = extractEntityId(this.config.default_entity);
     const validConfigDefault = this._entitiesList.some(e => e.entity === configDefault) ? configDefault : null;
@@ -1757,24 +1722,22 @@ class TemperatureRangeCard extends HTMLElement {
 
     const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
-      : ["10d", "20d", "30d", "20w", "12m"];
+      : [...DEFAULT_PERIODS];
     const sortedAllowed = sortPeriods(rawAllowed);
+    const isAllowed = (p) => !!p && sortedAllowed.some(a => parsePeriod(a).raw === parsePeriod(p).raw);
 
-    const storagePeriodKey = this._getStorageKey("period");
-    let savedPeriod = null;
-    try {
-      savedPeriod = localStorage.getItem(storagePeriodKey) || localStorage.getItem("temp_range_selected_period");
-    } catch (_) {}
-    const isSavedPeriodValid = savedPeriod && sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(savedPeriod).raw);
+    const savedPeriod = this._readStorage("period");
     const configPeriod = this.config.default_period;
-    const isConfigPeriodValid = sortedAllowed.some(p => parsePeriod(p).raw === parsePeriod(configPeriod).raw);
-    this._selectedPeriod = isSavedPeriodValid ? savedPeriod : (isConfigPeriodValid ? configPeriod : (sortedAllowed[0] || "10d"));
+    this._selectedPeriod = isAllowed(savedPeriod) ? savedPeriod : (isAllowed(configPeriod) ? configPeriod : (sortedAllowed[0] || DEFAULT_PERIOD));
 
     this._history = null;
     this._stats = null;
     this._loading = false;
     this._lastState = null;
+    this._lastFetchTs = 0;
+    this._pendingRender = false;
     this._isCardRendered = false;
+    this._reqId = (this._reqId || 0) + 1;
 
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
@@ -1788,19 +1751,42 @@ class TemperatureRangeCard extends HTMLElement {
     }
   }
 
+  connectedCallback() {
+    if (this._hass && this._selectedEntity && !this._history && !this._stats && !this._loading) {
+      this._fetchData();
+    }
+  }
+
+  disconnectedCallback() {
+    // Invalide toute requête en vol : sa réponse sera ignorée
+    this._reqId = (this._reqId || 0) + 1;
+    this._loading = false;
+  }
+
+  getCardSize() {
+    const { count } = parsePeriod(this._selectedPeriod || DEFAULT_PERIOD);
+    const rows = Math.min(count, 60);
+    const barHeight = clampBarHeight(this.config && this.config.bar_height);
+    return Math.max(3, Math.ceil(2.5 + (rows * (barHeight + 10)) / 50));
+  }
+
+  getGridOptions() {
+    return { columns: 12, min_columns: 6 };
+  }
+
   set hass(hass) {
     this._hass = hass;
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
 
-    // 1. Si aucune entité n'est configurée, afficher immédiatement l'écran propre d'attente
+    // 1. Aucune entité configurée : écran d'attente (rendu unique)
     if (!this._entitiesList || this._entitiesList.length === 0) {
-      this._render();
+      if (!this._isCardRendered) this._render();
       return;
     }
 
-    // 2. Si l'entité sélectionnée n'est pas trouvée dans hass.states, tenter de basculer sur une entité valide existante
+    // 2. Entité sélectionnée absente de hass.states : bascule sur une entité valide
     let cur = hass.states[this._selectedEntity];
     if (!cur) {
       const fallback = this._entitiesList.find(e => e && e.entity && hass.states[e.entity]);
@@ -1810,20 +1796,52 @@ class TemperatureRangeCard extends HTMLElement {
       }
     }
 
-    // 3. Si premier rendu ou Shadow DOM non initialisé, rendre immédiatement
+    // 3. Premier rendu
     if (!this._isCardRendered) {
       this._render();
     }
 
-    // 4. Si une entité est disponible, charger les données ou rafraîchir
-    if (this._selectedEntity) {
-      if (!this._history && !this._stats && !this._loading) {
-        this._fetchData();
-      } else if (cur && this._lastState !== cur.state) {
-        this._lastState = cur.state;
-        this._render();
-      }
+    if (!this._selectedEntity) return;
+
+    // 4. Chargement initial, rafraîchissement de l'état ou des données historiques
+    if (!this._history && !this._stats && !this._loading) {
+      this._fetchData();
+    } else if (cur && this._lastState !== cur.state) {
+      this._lastState = cur.state;
+      this._requestRender();
+    } else if (!this._loading && Date.now() - (this._lastFetchTs || 0) > REFRESH_INTERVAL_MS) {
+      this._fetchData();
     }
+  }
+
+  // Rendu différé si un menu déroulant a le focus (évite de le fermer pendant la sélection)
+  _requestRender() {
+    const active = this.shadowRoot && this.shadowRoot.activeElement;
+    if (active && active.tagName === "SELECT") {
+      this._pendingRender = true;
+      return;
+    }
+    this._pendingRender = false;
+    this._render();
+  }
+
+  _wsStats(period, start) {
+    return this._hass.callWS({
+      type: "recorder/statistics_during_period",
+      start_time: start.toISOString(),
+      statistic_ids: [this._selectedEntity],
+      period
+    }).then(res => (res && res[this._selectedEntity]) || []);
+  }
+
+  _wsHistory(start) {
+    return this._hass.callWS({
+      type: "history/history_during_period",
+      start_time: start.toISOString(),
+      entity_ids: [this._selectedEntity],
+      minimal_response: true,
+      no_attributes: true
+    }).then(res => (res && res[this._selectedEntity]) || []);
   }
 
   async _fetchData() {
@@ -1831,160 +1849,325 @@ class TemperatureRangeCard extends HTMLElement {
       this._loading = false;
       return;
     }
+    // Jeton anti-concurrence : seule la dernière requête lancée peut mettre à jour la carte
+    const reqId = ++this._reqId;
     this._loading = true;
     try {
-      const mode = this._selectedPeriod;
-      const { count, unit } = parsePeriod(mode);
+      const { count, unit } = parsePeriod(this._selectedPeriod);
       const now = Date.now();
-      const statsIds = [this._selectedEntity];
+      let history = [];
+      let stats = [];
 
       if (unit === "d") {
-        const dStatsStart = new Date(now);
-        dStatsStart.setDate(dStatsStart.getDate() - (count + 1));
-        dStatsStart.setHours(0, 0, 0, 0);
-        const statsStart = dStatsStart.toISOString();
-
-        // Récupérer l'historique brut jusqu'à 31 jours (le recorder fournira ce qu'il conserve réellement)
-        const histDays = Math.min(count, 31);
-        const dHistStart = new Date(now);
-        dHistStart.setDate(dHistStart.getDate() - (histDays + 1));
-        dHistStart.setHours(0, 0, 0, 0);
-        const histStart = dHistStart.toISOString();
-
-        // 1. Fetch detailed history for same-time points
-        const histPromise = this._hass.callWS({
-          type: "history/history_during_period",
-          start_time: histStart,
-          entity_ids: [this._selectedEntity],
-          minimal_response: true,
-          no_attributes: true
-        });
-
-        // 2. Fetch daily statistics for exact min/max over N days
-        const statsPromise = this._hass.callWS({
-          type: "recorder/statistics_during_period",
-          start_time: statsStart,
-          statistic_ids: statsIds,
-          period: "day"
-        });
-
-        const [histRes, statsRes] = await Promise.all([histPromise, statsPromise]);
-        this._history = histRes[this._selectedEntity] || [];
-        this._stats = statsRes[this._selectedEntity] || [];
-
-      } else if (unit === "w") {
-        // Récupération des statistiques hebdomadaires (LTS)
-        const statsStart = new Date(now - ((count + 2) * 7 * 24 * 3600 * 1000)).toISOString();
-        const statsRes = await this._hass.callWS({
-          type: "recorder/statistics_during_period",
-          start_time: statsStart,
-          statistic_ids: statsIds,
-          period: "week"
-        });
-        this._stats = statsRes[this._selectedEntity] || [];
-
-        // Fallback historique brut si aucune statistique LTS n'est disponible (ex: consigne thermostat sans state_class)
-        if (!this._stats.length) {
+        // Min/max journaliers exacts (LTS) + historique brut pour les points « même heure »
+        const statsStart = new Date(now);
+        statsStart.setDate(statsStart.getDate() - (count + 1));
+        statsStart.setHours(0, 0, 0, 0);
+        const histStart = new Date(now);
+        histStart.setDate(histStart.getDate() - (Math.min(count, HISTORY_MAX_DAYS) + 1));
+        histStart.setHours(0, 0, 0, 0);
+        [history, stats] = await Promise.all([this._wsHistory(histStart), this._wsStats("day", statsStart)]);
+      } else {
+        const spanDays = unit === "w" ? (count + 2) * 7 : (unit === "m" ? count * 32 + 10 : count * 366 + 35);
+        stats = await this._wsStats(unit === "w" ? "week" : "month", new Date(now - spanDays * MS_PER_DAY));
+        // Repli sur l'historique brut si aucune statistique LTS n'est disponible (sauf vue annuelle)
+        if (unit !== "y" && !stats.length) {
           try {
-            const histStart = new Date(now - (31 * 24 * 3600 * 1000)).toISOString();
-            const histRes = await this._hass.callWS({
-              type: "history/history_during_period",
-              start_time: histStart,
-              entity_ids: [this._selectedEntity],
-              minimal_response: true,
-              no_attributes: true
-            });
-            this._history = histRes[this._selectedEntity] || [];
-          } catch (_) {
-            this._history = [];
+            history = await this._wsHistory(new Date(now - HISTORY_MAX_DAYS * MS_PER_DAY));
+          } catch (e) {
+            console.debug("temperature-range-card: historique brut indisponible", e);
           }
-        } else {
-          this._history = [];
         }
-
-      } else if (unit === "m") {
-        // Récupération des statistiques mensuelles (LTS)
-        const statsStart = new Date(now - ((count * 32 + 10) * 24 * 3600 * 1000)).toISOString();
-        const statsRes = await this._hass.callWS({
-          type: "recorder/statistics_during_period",
-          start_time: statsStart,
-          statistic_ids: statsIds,
-          period: "month"
-        });
-        this._stats = statsRes[this._selectedEntity] || [];
-
-        // Fallback historique brut si aucune statistique LTS n'est disponible
-        if (!this._stats.length) {
-          try {
-            const histStart = new Date(now - (31 * 24 * 3600 * 1000)).toISOString();
-            const histRes = await this._hass.callWS({
-              type: "history/history_during_period",
-              start_time: histStart,
-              entity_ids: [this._selectedEntity],
-              minimal_response: true,
-              no_attributes: true
-            });
-            this._history = histRes[this._selectedEntity] || [];
-          } catch (_) {
-            this._history = [];
-          }
-        } else {
-          this._history = [];
-        }
-
-      } else if (unit === "y") {
-        // Récupération des statistiques mensuelles agrégées par année
-        const statsStart = new Date(now - ((count * 366 + 35) * 24 * 3600 * 1000)).toISOString();
-        const statsRes = await this._hass.callWS({
-          type: "recorder/statistics_during_period",
-          start_time: statsStart,
-          statistic_ids: statsIds,
-          period: "month"
-        });
-        this._stats = statsRes[this._selectedEntity] || [];
-        this._history = [];
       }
 
-      this._loading = false;
-      this._render();
+      if (reqId !== this._reqId) return;
+      this._history = history;
+      this._stats = stats;
     } catch (e) {
-      console.error("Erreur temperature-range-card fetch:", e);
-      this._loading = false;
-      this._render();
+      if (reqId !== this._reqId) return;
+      console.error("temperature-range-card: erreur de récupération des données", e);
+      // Évite une boucle de re-requêtes à chaque mise à jour de hass
+      this._history = [];
+      this._stats = [];
     }
+    this._loading = false;
+    this._lastFetchTs = Date.now();
+    this._requestRender();
   }
 
   _getStorageKey(suffix) {
     const listStr = (this._entitiesList || []).map(e => e.entity).sort().join(",");
     let hash = 0;
-    const combined = (this.config?.title || "card") + ":" + listStr;
-    for (let i = 0; i < combined.length; i++) {
-      hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+    for (let i = 0; i < listStr.length; i++) {
+      hash = ((hash << 5) - hash) + listStr.charCodeAt(i);
       hash |= 0;
     }
     return `trc_${Math.abs(hash)}_${suffix}`;
   }
 
-  _onSelectChange(e) {
-    this._selectedEntity = e.target.value;
+  _readStorage(suffix) {
     try {
-      localStorage.setItem(this._getStorageKey("entity"), this._selectedEntity);
-    } catch (_) {}
+      return localStorage.getItem(this._getStorageKey(suffix));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _writeStorage(suffix, value) {
+    try {
+      localStorage.setItem(this._getStorageKey(suffix), value);
+    } catch (_) {
+      // Stockage indisponible (navigation privée) : la sélection ne sera simplement pas mémorisée
+    }
+  }
+
+  _resetAndFetch() {
     this._history = null;
     this._stats = null;
     this._render();
     this._fetchData();
   }
 
+  _onSelectChange(e) {
+    this._selectedEntity = e.target.value;
+    this._writeStorage("entity", this._selectedEntity);
+    this._resetAndFetch();
+  }
+
   _onPeriodChange(e) {
     this._selectedPeriod = e.target.value;
-    try {
-      localStorage.setItem(this._getStorageKey("period"), this._selectedPeriod);
-    } catch (_) {}
-    this._history = null;
-    this._stats = null;
-    this._render();
-    this._fetchData();
+    this._writeStorage("period", this._selectedPeriod);
+    this._resetAndFetch();
+  }
+
+  // Lignes de la vue « jours » : historique brut (jours récents) complété par les statistiques LTS
+  _computeDayRows({ count, now, nowTimeStr, userLocale, cur }) {
+    const rowsList = [];
+    let subtitleHtml = "";
+    const daysCount = count;
+
+    // 1. Calculer les min/max exacts depuis l'historique direct (_history) pour les jours récents
+    const histDaysMap = new Map();
+    let earliestHistTs = Infinity;
+    if (this._history && this._history.length) {
+      earliestHistTs = this._history[0].lu;
+      for (const pt of this._history) {
+        const val = parseFloat(pt.s);
+        if (isNaN(val)) continue;
+        const ptDate = new Date(pt.lu * 1000);
+        const dStr = ptDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
+        if (!histDaysMap.has(dStr)) {
+          histDaysMap.set(dStr, { min: val, max: val });
+        } else {
+          const h = histDaysMap.get(dStr);
+          if (val < h.min) h.min = val;
+          if (val > h.max) h.max = val;
+        }
+      }
+    }
+
+    // Nombre de jours réels disposant d'un point historique à la même heure
+    let pointsAvailableCount = 0;
+
+    // 2. Initialiser les N jours (utilisation de setDate pour respecter strictement les jours calendaires et transitions DST/heure d'été-hiver)
+    for (let i = 0; i < daysCount; i++) {
+      const targetDate = new Date(now);
+      targetDate.setDate(now.getDate() - i);
+      const dateStr = targetDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
+      const targetTs = Math.floor(targetDate.getTime() / 1000);
+
+      let label = "";
+      if (i === 0) label = localize("today", this._hass);
+      else if (i === 1) label = localize("yesterday", this._hass);
+      else {
+        const w = targetDate.toLocaleDateString(userLocale, { weekday: "short" });
+        const d = targetDate.toLocaleDateString(userLocale, { day: "2-digit", month: "2-digit" });
+        label = `${w.charAt(0).toUpperCase() + w.slice(1)} ${d}`;
+      }
+
+      const isToday = i === 0;
+      const currentVal = (isToday && cur && !isNaN(parseFloat(cur.state))) ? parseFloat(cur.state) : null;
+
+      // Détection dynamique réelle : le point n'est cherché que si targetTs est dans la plage de l'historique brut conservé
+      let sameTimeVal = isToday ? currentVal : null;
+      if (!isToday && this._history && this._history.length && targetTs >= earliestHistTs) {
+        for (const pt of this._history) {
+          if (pt.lu <= targetTs) {
+            const v = parseFloat(pt.s);
+            if (!isNaN(v)) sameTimeVal = v;
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (sameTimeVal !== null) {
+        pointsAvailableCount++;
+      }
+
+      let dayMin = null;
+      let dayMax = null;
+      let hasDirectHist = false;
+
+      if (histDaysMap.has(dateStr)) {
+        const h = histDaysMap.get(dateStr);
+        dayMin = h.min;
+        dayMax = h.max;
+        hasDirectHist = true;
+
+        // L'état en vigueur à 00:00 (reporté de la veille) fait partie de la plage du jour
+        const dayStart = new Date(targetDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const startTs = Math.floor(dayStart.getTime() / 1000);
+        if (startTs >= earliestHistTs) {
+          let carried = null;
+          for (const pt of this._history) {
+            if (pt.lu <= startTs) {
+              const v = parseFloat(pt.s);
+              if (!isNaN(v)) carried = v;
+            } else break;
+          }
+          if (carried !== null) {
+            dayMin = Math.min(dayMin, carried);
+            dayMax = Math.max(dayMax, carried);
+          }
+        }
+        // La valeur "même heure" doit toujours être dans la barre
+        if (sameTimeVal !== null) {
+          dayMin = Math.min(dayMin, sameTimeVal);
+          dayMax = Math.max(dayMax, sameTimeVal);
+        }
+      } else if (sameTimeVal !== null && !isToday) {
+        // Journée plate : aucun changement d'état enregistré, la valeur reportée fait foi
+        dayMin = sameTimeVal;
+        dayMax = sameTimeVal;
+      }
+
+      if (isToday && currentVal !== null) {
+        dayMin = dayMin === null ? currentVal : Math.min(dayMin, currentVal);
+        dayMax = dayMax === null ? currentVal : Math.max(dayMax, currentVal);
+      }
+
+      rowsList.push({
+        dateStr: dateStr,
+        label: label,
+        min: dayMin,
+        max: dayMax,
+        sameTimeVal: sameTimeVal,
+        isToday: isToday,
+        hasDirectHist: hasDirectHist
+      });
+    }
+
+    // Sous-titre dynamique selon la présence réelle des points
+    if (daysCount <= 10 || pointsAvailableCount >= daysCount) {
+      subtitleHtml = `
+        <span class="legend-item"><span class="legend-dot today"></span> ${localize("legend_current", this._hass, { time: nowTimeStr })}</span>
+        <span class="legend-item"><span class="legend-dot past"></span> ${localize("legend_same_time", this._hass, { time: nowTimeStr })}</span>
+      `;
+    } else {
+      subtitleHtml = `
+        <span class="legend-item"><span class="legend-dot today"></span> ${localize("legend_current", this._hass, { time: nowTimeStr })}</span>
+        <span class="legend-item"><span class="legend-dot past"></span> ${localize("legend_same_time_recent", this._hass, { count: pointsAvailableCount })}</span>
+        <span class="legend-item" style="opacity:0.8;">${localize("legend_minmax", this._hass, { count: daysCount })}</span>
+      `;
+    }
+
+    // 3. Compléter avec les statistiques pour les jours antérieurs
+    if (this._stats && this._stats.length) {
+      for (const stat of this._stats) {
+        const statDate = new Date(stat.start);
+        const statDateStr = statDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
+        const row = rowsList.find(r => r.dateStr === statDateStr);
+        if (row && !row.hasDirectHist) {
+          if (stat.min !== null && stat.min !== undefined) {
+            row.min = row.min === null ? stat.min : Math.min(row.min, stat.min);
+          }
+          if (stat.max !== null && stat.max !== undefined) {
+            row.max = row.max === null ? stat.max : Math.max(row.max, stat.max);
+          }
+        }
+      }
+    }
+
+
+    return { rowsList, subtitleHtml };
+  }
+
+  // Lignes des vues « semaines / mois / années » : agrégation par clé calendaire
+  _computeAggregateRows(unit, { count, now, userLocale, currentTempValue }) {
+    const hass = this._hass;
+    const curVal = currentTempValue !== null ? parseFloat(currentTempValue) : null;
+    const pad = (n) => String(n).padStart(2, "0");
+    const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+
+    let subtitleHtml;
+    let keyOf;
+    let labelOf;
+    let offsetDays;
+    if (unit === "w") {
+      subtitleHtml = `<span>${localize("subtitle_weeks", hass, { count })}</span>`;
+      offsetDays = 2;
+      keyOf = (d) => { const w = getISOWeekInfo(d); return `${w.year}-W${pad(w.week)}`; };
+      labelOf = (d, isCurrent) => localize(isCurrent ? "week_label_current" : "week_label", hass, { week: getISOWeekNumber(d) });
+    } else if (unit === "m") {
+      subtitleHtml = `<span>${localize("subtitle_months", hass, { count })}</span>`;
+      offsetDays = 5;
+      keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+      labelOf = (d) => capitalize(d.toLocaleDateString(userLocale, { month: "short", year: "2-digit" }));
+    } else {
+      subtitleHtml = count === 1
+        ? `<span>${localize("subtitle_year_single", hass)}</span>`
+        : `<span>${localize("subtitle_years", hass, { count })}</span>`;
+      offsetDays = 5;
+      keyOf = (d) => String(d.getFullYear());
+      labelOf = (d, isCurrent) => isCurrent ? `${d.getFullYear()} (${localize("in_progress", hass)})` : String(d.getFullYear());
+    }
+
+    // Points sources : statistiques LTS, sinon historique brut (vues semaines/mois uniquement)
+    const points = [];
+    if (this._stats && this._stats.length) {
+      for (const st of this._stats) {
+        points.push({ date: new Date(st.start + offsetDays * MS_PER_DAY), min: st.min, max: st.max });
+      }
+    } else if (this._history && this._history.length) {
+      for (const pt of this._history) {
+        const v = parseFloat(pt.s);
+        if (!isNaN(v)) points.push({ date: new Date(pt.lu * 1000), min: v, max: v });
+      }
+    }
+    if (!points.length) return { rowsList: [], subtitleHtml };
+
+    const groups = new Map();
+    const merge = (key, date, mn, mx) => {
+      const lo = (mn === undefined) ? null : mn;
+      const hi = (mx === undefined) ? null : mx;
+      const g = groups.get(key);
+      if (!g) {
+        groups.set(key, { date, min: lo, max: hi });
+        return;
+      }
+      if (lo !== null && (g.min === null || lo < g.min)) g.min = lo;
+      if (hi !== null && (g.max === null || hi > g.max)) g.max = hi;
+    };
+    for (const p of points) merge(keyOf(p.date), p.date, p.min, p.max);
+
+    // La valeur actuelle est intégrée en temps réel à la période en cours
+    const currentKey = keyOf(now);
+    if (curVal !== null) merge(currentKey, now, curVal, curVal);
+
+    const rowsList = [...groups.keys()].sort().reverse().slice(0, count).map(k => {
+      const g = groups.get(k);
+      const isCurrent = k === currentKey;
+      return {
+        label: labelOf(g.date, isCurrent),
+        min: g.min,
+        max: g.max,
+        sameTimeVal: isCurrent ? curVal : null,
+        isToday: isCurrent
+      };
+    });
+    return { rowsList, subtitleHtml };
   }
 
   _render() {
@@ -1998,6 +2181,7 @@ class TemperatureRangeCard extends HTMLElement {
             display: block;
           }
           ha-card {
+            display: block;
             background: var(--ha-card-background, var(--card-background-color, #1c1c1e));
             border-radius: var(--ha-card-border-radius, 16px);
             box-shadow: var(--ha-card-box-shadow, 0 4px 20px rgba(0, 0, 0, 0.15));
@@ -2022,7 +2206,7 @@ class TemperatureRangeCard extends HTMLElement {
         </style>
         <ha-card>
           <div class="empty-icon">🌡️</div>
-          <div class="empty-title">${this.config.title || "Comparatif & Amplitudes Thermiques"}</div>
+          <div class="empty-title">${escapeHtml(this.config.title || localize("card_title_default", this._hass))}</div>
           <div class="empty-desc">
             ${localize("no_sensors_title", this._hass)}<br>${localize("no_sensors_desc", this._hass)}
           </div>
@@ -2041,7 +2225,7 @@ class TemperatureRangeCard extends HTMLElement {
 
     const rawAllowed = (Array.isArray(this.config.available_periods) && this.config.available_periods.length)
       ? this.config.available_periods
-      : ["10d", "20d", "30d", "20w", "12m"];
+      : [...DEFAULT_PERIODS];
 
     // Tri logique garanti : Jours croissants, Semaines croissantes, Mois croissants
     const sortedAllowed = sortPeriods(rawAllowed);
@@ -2061,339 +2245,12 @@ class TemperatureRangeCard extends HTMLElement {
 
     const { count, unit } = parsePeriod(currentMode);
     const now = new Date();
-    const nowTimeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const nowTimeStr = now.toLocaleTimeString(userLocale, { hour: "2-digit", minute: "2-digit" });
 
-    let rowsList = [];
-    let subtitleHtml = "";
-
-    if (unit === "d") {
-      const daysCount = count;
-
-      // 1. Calculer les min/max exacts depuis l'historique direct (_history) pour les jours récents
-      const histDaysMap = new Map();
-      let earliestHistTs = Infinity;
-      if (this._history && this._history.length) {
-        earliestHistTs = this._history[0].lu;
-        for (const pt of this._history) {
-          const val = parseFloat(pt.s);
-          if (isNaN(val)) continue;
-          const ptDate = new Date(pt.lu * 1000);
-          const dStr = ptDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
-          if (!histDaysMap.has(dStr)) {
-            histDaysMap.set(dStr, { min: val, max: val });
-          } else {
-            const h = histDaysMap.get(dStr);
-            if (val < h.min) h.min = val;
-            if (val > h.max) h.max = val;
-          }
-        }
-      }
-
-      // Nombre de jours réels disposant d'un point historique à la même heure
-      let pointsAvailableCount = 0;
-
-      // 2. Initialiser les N jours (utilisation de setDate pour respecter strictement les jours calendaires et transitions DST/heure d'été-hiver)
-      for (let i = 0; i < daysCount; i++) {
-        const targetDate = new Date(now);
-        targetDate.setDate(now.getDate() - i);
-        const dateStr = targetDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
-        const targetTs = Math.floor(targetDate.getTime() / 1000);
-        
-        let label = "";
-        if (i === 0) label = localize("today", this._hass);
-        else if (i === 1) label = localize("yesterday", this._hass);
-        else {
-          const w = targetDate.toLocaleDateString(userLocale, { weekday: "short" });
-          const d = targetDate.toLocaleDateString(userLocale, { day: "2-digit", month: "2-digit" });
-          label = `${w.charAt(0).toUpperCase() + w.slice(1)} ${d}`;
-        }
-
-        const isToday = i === 0;
-        const currentVal = (isToday && cur && !isNaN(parseFloat(cur.state))) ? parseFloat(cur.state) : null;
-
-        // Détection dynamique réelle : le point n'est cherché que si targetTs est dans la plage de l'historique brut conservé
-        let sameTimeVal = isToday ? currentVal : null;
-        if (!isToday && this._history && this._history.length && targetTs >= earliestHistTs) {
-          for (const pt of this._history) {
-            if (pt.lu <= targetTs) {
-              const v = parseFloat(pt.s);
-              if (!isNaN(v)) sameTimeVal = v;
-            } else {
-              break;
-            }
-          }
-        }
-
-        if (sameTimeVal !== null) {
-          pointsAvailableCount++;
-        }
-
-        let dayMin = null;
-        let dayMax = null;
-        let hasDirectHist = false;
-
-        if (histDaysMap.has(dateStr)) {
-          const h = histDaysMap.get(dateStr);
-          dayMin = h.min;
-          dayMax = h.max;
-          hasDirectHist = true;
-
-          // L'état en vigueur à 00:00 (reporté de la veille) fait partie de la plage du jour
-          const dayStart = new Date(targetDate);
-          dayStart.setHours(0, 0, 0, 0);
-          const startTs = Math.floor(dayStart.getTime() / 1000);
-          if (startTs >= earliestHistTs) {
-            let carried = null;
-            for (const pt of this._history) {
-              if (pt.lu <= startTs) {
-                const v = parseFloat(pt.s);
-                if (!isNaN(v)) carried = v;
-              } else break;
-            }
-            if (carried !== null) {
-              dayMin = Math.min(dayMin, carried);
-              dayMax = Math.max(dayMax, carried);
-            }
-          }
-          // La valeur "même heure" doit toujours être dans la barre
-          if (sameTimeVal !== null) {
-            dayMin = Math.min(dayMin, sameTimeVal);
-            dayMax = Math.max(dayMax, sameTimeVal);
-          }
-        } else if (sameTimeVal !== null && !isToday) {
-          // Journée plate : aucun changement d'état enregistré, la valeur reportée fait foi
-          dayMin = sameTimeVal;
-          dayMax = sameTimeVal;
-        }
-
-        if (isToday && currentVal !== null) {
-          dayMin = dayMin === null ? currentVal : Math.min(dayMin, currentVal);
-          dayMax = dayMax === null ? currentVal : Math.max(dayMax, currentVal);
-        }
-
-        rowsList.push({
-          dateStr: dateStr,
-          label: label,
-          min: dayMin,
-          max: dayMax,
-          sameTimeVal: sameTimeVal,
-          isToday: isToday,
-          hasDirectHist: hasDirectHist
-        });
-      }
-
-      // Sous-titre dynamique selon la présence réelle des points
-      if (daysCount <= 10 || pointsAvailableCount >= daysCount) {
-        subtitleHtml = `
-          <span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
-          <span class="legend-item"><span class="legend-dot past"></span> Même heure (${nowTimeStr}) les jours passés</span>
-        `;
-      } else {
-        subtitleHtml = `
-          <span class="legend-item"><span class="legend-dot today"></span> T° actuelle (${nowTimeStr})</span>
-          <span class="legend-item"><span class="legend-dot past"></span> Même heure (sur les ${pointsAvailableCount} jours récents)</span>
-          <span class="legend-item" style="opacity:0.8;">Barres Min-Max sur ${daysCount} jours</span>
-        `;
-      }
-
-      // 3. Compléter avec les statistiques pour les jours antérieurs
-      if (this._stats && this._stats.length) {
-        for (const stat of this._stats) {
-          const statDate = new Date(stat.start);
-          const statDateStr = statDate.toLocaleDateString(userLocale, { year: "numeric", month: "2-digit", day: "2-digit" });
-          const row = rowsList.find(r => r.dateStr === statDateStr);
-          if (row && !row.hasDirectHist) {
-            if (stat.min !== null && stat.min !== undefined) {
-              row.min = row.min === null ? stat.min : Math.min(row.min, stat.min);
-            }
-            if (stat.max !== null && stat.max !== undefined) {
-              row.max = row.max === null ? stat.max : Math.max(row.max, stat.max);
-            }
-          }
-        }
-      }
-
-    } else if (unit === "w") {
-      subtitleHtml = `<span>Synthèse hebdomadaire des ${count} dernières semaines (Numéros de semaine ISO)</span>`;
-      const currentWeekNum = getISOWeekNumber(now);
-
-      if (this._stats && this._stats.length) {
-        const sorted = [...this._stats].reverse().slice(0, count);
-        rowsList = sorted.map((stat, idx) => {
-          const sDate = new Date(stat.start + 86400000 * 2);
-          const wNum = getISOWeekNumber(sDate);
-          const isCurrent = idx === 0 || wNum === currentWeekNum;
-          const label = isCurrent ? `Sem. ${wNum} (Auj.)` : `Semaine ${wNum}`;
-          let minVal = stat.min;
-          let maxVal = stat.max;
-          if (isCurrent && currentTempValue !== null) {
-            const curVal = parseFloat(currentTempValue);
-            if (minVal === null || curVal < minVal) minVal = curVal;
-            if (maxVal === null || curVal > maxVal) maxVal = curVal;
-          }
-          return {
-            label: label,
-            min: minVal,
-            max: maxVal,
-            sameTimeVal: isCurrent ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-            isToday: isCurrent
-          };
-        });
-      } else if (this._history && this._history.length) {
-        const weeksMap = {};
-        for (const pt of this._history) {
-          const val = parseFloat(pt.s);
-          if (isNaN(val)) continue;
-          const ptDate = new Date(pt.lu * 1000);
-          const wNum = getISOWeekNumber(ptDate);
-          const yNum = ptDate.getFullYear();
-          const key = `${yNum}-W${String(wNum).padStart(2, "0")}`;
-          if (!weeksMap[key]) {
-            weeksMap[key] = { label: `Semaine ${wNum}`, wNum: wNum, min: val, max: val };
-          } else {
-            if (val < weeksMap[key].min) weeksMap[key].min = val;
-            if (val > weeksMap[key].max) weeksMap[key].max = val;
-          }
-        }
-        const currentWeekKey = `${now.getFullYear()}-W${String(currentWeekNum).padStart(2, "0")}`;
-        if (currentTempValue !== null) {
-          const curVal = parseFloat(currentTempValue);
-          if (!weeksMap[currentWeekKey]) {
-            weeksMap[currentWeekKey] = { label: `Sem. ${currentWeekNum} (Auj.)`, wNum: currentWeekNum, min: curVal, max: curVal };
-          } else {
-            if (curVal < weeksMap[currentWeekKey].min) weeksMap[currentWeekKey].min = curVal;
-            if (curVal > weeksMap[currentWeekKey].max) weeksMap[currentWeekKey].max = curVal;
-          }
-        }
-        const sortedKeys = Object.keys(weeksMap).sort().reverse().slice(0, count);
-        rowsList = sortedKeys.map(k => ({
-          label: k === currentWeekKey ? `Sem. ${weeksMap[k].wNum} (Auj.)` : `Semaine ${weeksMap[k].wNum}`,
-          min: weeksMap[k].min,
-          max: weeksMap[k].max,
-          sameTimeVal: k === currentWeekKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-          isToday: k === currentWeekKey
-        }));
-      }
-
-    } else if (unit === "m") {
-      subtitleHtml = `<span>Synthèse mensuelle des ${count} derniers mois (Évolution des saisons & amplitudes)</span>`;
-      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-      if (this._stats && this._stats.length) {
-        const monthsMap = {};
-        for (const stat of this._stats) {
-          const dt = new Date(stat.start + 86400000 * 5);
-          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-          let mName = dt.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
-          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
-          if (!monthsMap[key]) {
-            monthsMap[key] = { label: mName, min: stat.min, max: stat.max };
-          } else {
-            if (stat.min !== null && (monthsMap[key].min === null || stat.min < monthsMap[key].min)) {
-              monthsMap[key].min = stat.min;
-            }
-            if (stat.max !== null && (monthsMap[key].max === null || stat.max > monthsMap[key].max)) {
-              monthsMap[key].max = stat.max;
-            }
-          }
-        }
-        if (currentTempValue !== null) {
-          const curVal = parseFloat(currentTempValue);
-          let mName = now.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
-          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
-          if (!monthsMap[currentMonthKey]) {
-            monthsMap[currentMonthKey] = { label: mName, min: curVal, max: curVal };
-          } else {
-            if (monthsMap[currentMonthKey].min === null || curVal < monthsMap[currentMonthKey].min) monthsMap[currentMonthKey].min = curVal;
-            if (monthsMap[currentMonthKey].max === null || curVal > monthsMap[currentMonthKey].max) monthsMap[currentMonthKey].max = curVal;
-          }
-        }
-        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
-        rowsList = sortedKeys.map(k => ({
-          label: monthsMap[k].label,
-          min: monthsMap[k].min,
-          max: monthsMap[k].max,
-          sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-          isToday: k === currentMonthKey
-        }));
-      } else if (this._history && this._history.length) {
-        const monthsMap = {};
-        for (const pt of this._history) {
-          const val = parseFloat(pt.s);
-          if (isNaN(val)) continue;
-          const dt = new Date(pt.lu * 1000);
-          const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
-          let mName = dt.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
-          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
-          if (!monthsMap[key]) {
-            monthsMap[key] = { label: mName, min: val, max: val };
-          } else {
-            if (val < monthsMap[key].min) monthsMap[key].min = val;
-            if (val > monthsMap[key].max) monthsMap[key].max = val;
-          }
-        }
-        if (currentTempValue !== null) {
-          const curVal = parseFloat(currentTempValue);
-          let mName = now.toLocaleDateString(userLocale, { month: "short", year: "2-digit" });
-          mName = mName.charAt(0).toUpperCase() + mName.slice(1);
-          if (!monthsMap[currentMonthKey]) {
-            monthsMap[currentMonthKey] = { label: mName, min: curVal, max: curVal };
-          } else {
-            if (curVal < monthsMap[currentMonthKey].min) monthsMap[currentMonthKey].min = curVal;
-            if (curVal > monthsMap[currentMonthKey].max) monthsMap[currentMonthKey].max = curVal;
-          }
-        }
-        const sortedKeys = Object.keys(monthsMap).sort().reverse().slice(0, count);
-        rowsList = sortedKeys.map(k => ({
-          label: monthsMap[k].label,
-          min: monthsMap[k].min,
-          max: monthsMap[k].max,
-          sameTimeVal: k === currentMonthKey ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-          isToday: k === currentMonthKey
-        }));
-      }
-
-    } else if (unit === "y") {
-      subtitleHtml = count === 1
-        ? `<span>${localize("subtitle_year_single", this._hass)}</span>`
-        : `<span>${localize("subtitle_years", this._hass, { count })}</span>`;
-      const currentYearStr = String(now.getFullYear());
-
-      if (this._stats && this._stats.length) {
-        const yearsMap = {};
-        for (const stat of this._stats) {
-          const dt = new Date(stat.start + 86400000 * 5);
-          const yKey = String(dt.getFullYear());
-          if (!yearsMap[yKey]) {
-            yearsMap[yKey] = { label: yKey, min: stat.min, max: stat.max };
-          } else {
-            if (stat.min !== null && (yearsMap[yKey].min === null || stat.min < yearsMap[yKey].min)) {
-              yearsMap[yKey].min = stat.min;
-            }
-            if (stat.max !== null && (yearsMap[yKey].max === null || stat.max > yearsMap[yKey].max)) {
-              yearsMap[yKey].max = stat.max;
-            }
-          }
-        }
-        if (currentTempValue !== null) {
-          const curVal = parseFloat(currentTempValue);
-          if (!yearsMap[currentYearStr]) {
-            yearsMap[currentYearStr] = { label: currentYearStr, min: curVal, max: curVal };
-          } else {
-            if (yearsMap[currentYearStr].min === null || curVal < yearsMap[currentYearStr].min) yearsMap[currentYearStr].min = curVal;
-            if (yearsMap[currentYearStr].max === null || curVal > yearsMap[currentYearStr].max) yearsMap[currentYearStr].max = curVal;
-          }
-        }
-        const sortedKeys = Object.keys(yearsMap).sort().reverse().slice(0, count);
-        rowsList = sortedKeys.map(k => ({
-          label: k === currentYearStr ? `${k} (${localize("in_progress", this._hass)})` : k,
-          min: yearsMap[k].min,
-          max: yearsMap[k].max,
-          sameTimeVal: k === currentYearStr ? (currentTempValue !== null ? parseFloat(currentTempValue) : null) : null,
-          isToday: k === currentYearStr
-        }));
-      }
-    }
+    const rowsCtx = { count, now, nowTimeStr, userLocale, cur, currentTempValue };
+    const { rowsList, subtitleHtml } = unit === "d"
+      ? this._computeDayRows(rowsCtx)
+      : this._computeAggregateRows(unit, rowsCtx);
 
     // Calculer les bornes globales Min et Max pour la barre grise
     let globalMin = Infinity;
@@ -2412,7 +2269,7 @@ class TemperatureRangeCard extends HTMLElement {
     }
     const globalSpan = globalMax - globalMin || 1;
 
-    const barHeight = Math.max(6, Math.min(60, parseInt(this.config.bar_height, 10) || 18));
+    const barHeight = clampBarHeight(this.config.bar_height);
     const gradientMode = (this.config.gradient_mode === "local") ? "local" : "global";
 
     // Typographie et espacements adaptatifs selon l'épaisseur des barres
@@ -2479,7 +2336,7 @@ class TemperatureRangeCard extends HTMLElement {
         <div class="scale-row">
           <div class="scale-spacer-left">
             <span class="scale-legend-tag">${localize("scale", this._hass)}</span>
-            <span class="scale-header-min">Min</span>
+            <span class="scale-header-min">${localize("min", this._hass)}</span>
           </div>
           <div class="scale-track">
             <div class="scale-point min" style="left: 0%;">
@@ -2493,7 +2350,7 @@ class TemperatureRangeCard extends HTMLElement {
             </div>
           </div>
           <div class="scale-spacer-right">
-            <span class="scale-header-max">Max</span>
+            <span class="scale-header-max">${localize("max", this._hass)}</span>
           </div>
         </div>
       `;
@@ -2502,11 +2359,11 @@ class TemperatureRangeCard extends HTMLElement {
         <div class="scale-row no-track">
           <div class="scale-spacer-left">
             <span></span>
-            <span class="scale-header-min">Min</span>
+            <span class="scale-header-min">${localize("min", this._hass)}</span>
           </div>
           <div class="scale-track" style="height:0; opacity:0; pointer-events:none;"></div>
           <div class="scale-spacer-right">
-            <span class="scale-header-max">Max</span>
+            <span class="scale-header-max">${localize("max", this._hass)}</span>
           </div>
         </div>
       `;
@@ -2523,7 +2380,7 @@ class TemperatureRangeCard extends HTMLElement {
         leftPct = Math.max(0, Math.min(100, ((d.min - globalMin) / globalSpan) * 100));
         const rightPct = Math.max(0, Math.min(100, ((d.max - globalMin) / globalSpan) * 100));
         const rawWidthPct = rightPct - leftPct;
-        widthPct = Math.max(6, rawWidthPct);
+        widthPct = Math.max(MIN_BAR_WIDTH_PCT, rawWidthPct);
         // Barre étroite (journée plate ou quasi) : la centrer sur sa plage pour qu'elle reste alignée avec le point blanc
         if (rawWidthPct < widthPct) {
           leftPct = leftPct + rawWidthPct / 2 - widthPct / 2;
@@ -2543,12 +2400,12 @@ class TemperatureRangeCard extends HTMLElement {
         const dotLeft = (d.min !== null && d.max !== null)
           ? `clamp(calc(${leftPct}% + ${dotR}px), ${dotPct}%, calc(${leftPct + widthPct}% - ${dotR}px))`
           : `${dotPct}%`;
-        dotHtml = `<div class="${dotClass}" style="left:${dotLeft};" title="${dotTitle}"></div>`;
+        dotHtml = `<div class="${dotClass}" style="left:${dotLeft};" title="${escapeHtml(dotTitle)}"></div>`;
       }
 
       const todayClass = d.isToday ? "today" : "";
 
-      const gradientColors = "linear-gradient(90deg, #43a047 0%, #81c784 25%, #fdd835 55%, #fb8c00 80%, #e53935 100%)";
+      const gradientColors = BAR_GRADIENT;
       let fillGradientStyle = "";
       if (gradientMode === "global") {
         const bgSize = widthPct > 0 ? (10000 / widthPct) : 100;
@@ -2560,9 +2417,9 @@ class TemperatureRangeCard extends HTMLElement {
 
       return `
         <div class="row">
-          <div class="day-label ${todayClass}">${d.label}</div>
+          <div class="day-label ${todayClass}">${escapeHtml(d.label)}</div>
           <div class="temp temp-min">${minVal}°</div>
-          <div class="bar-track" style="height:${barHeight}px;">
+          <div class="bar-track" role="img" aria-label="${escapeHtml(d.label)} : ${minVal}° – ${maxVal}°" style="height:${barHeight}px;">
             ${trackGuidesHtml}
             <div class="bar-fill" style="left:${leftPct}%; width:${widthPct}%; min-width:${Math.max(12, barHeight)}px; ${fillGradientStyle}"></div>
             ${dotHtml}
@@ -2576,19 +2433,19 @@ class TemperatureRangeCard extends HTMLElement {
     const selectorHtml = `
       <div class="selectors-container">
         <div class="select-wrapper">
-          <select id="roomSelect" class="entity-select" title="Choisir la zone">
+          <select id="roomSelect" class="entity-select" title="${localize("choose_zone", this._hass)}" aria-label="${localize("choose_zone", this._hass)}">
             ${this._entitiesList.map(e => `
-              <option value="${e.entity}" ${e.entity === this._selectedEntity ? "selected" : ""}>
-                ${e.name || e.entity}
+              <option value="${escapeHtml(e.entity)}" ${e.entity === this._selectedEntity ? "selected" : ""}>
+                ${escapeHtml(e.name || e.entity)}
               </option>
             `).join("")}
           </select>
         </div>
         <div class="select-wrapper">
-          <select id="periodSelect" class="entity-select period-select" title="Période & Regroupement">
+          <select id="periodSelect" class="entity-select period-select" title="${localize("period_grouping", this._hass)}" aria-label="${localize("period_grouping", this._hass)}">
             ${allowedPeriods.map(p => `
-              <option value="${p.id}" ${p.normalized === currentParsed.raw ? "selected" : ""}>
-                ${p.label}
+              <option value="${escapeHtml(p.id)}" ${p.normalized === currentParsed.raw ? "selected" : ""}>
+                ${escapeHtml(p.label)}
               </option>
             `).join("")}
           </select>
@@ -2602,9 +2459,9 @@ class TemperatureRangeCard extends HTMLElement {
       headerHtml = `
         <div class="header-container-two-rows">
           <div class="header-top-row">
-            <div class="card-header">${this.config.title || "Amplitudes Journalières"}</div>
+            <div class="card-header">${escapeHtml(this.config.title || localize("card_title_default", this._hass))}</div>
             <div class="current-temp-badge" title="${localize("current_temp", this._hass)}">
-              <span class="current-temp-num">${currentTempValue !== null ? currentTempValue : "--"}</span><span class="current-temp-unit">${unitMeasure}</span>
+              <span class="current-temp-num">${currentTempValue !== null ? currentTempValue : "--"}</span><span class="current-temp-unit">${escapeHtml(unitMeasure)}</span>
             </div>
           </div>
           <div class="header-selectors-row">
@@ -2615,7 +2472,7 @@ class TemperatureRangeCard extends HTMLElement {
     } else {
       headerHtml = `
         <div class="header-row">
-          <div class="card-header">${this.config.title || "Amplitudes Journalières"}</div>
+          <div class="card-header">${escapeHtml(this.config.title || localize("card_title_default", this._hass))}</div>
           ${selectorHtml}
         </div>
       `;
@@ -2628,6 +2485,7 @@ class TemperatureRangeCard extends HTMLElement {
           width: 100%;
         }
         ha-card {
+          display: block;
           padding: 16px 20px 20px 20px;
           box-sizing: border-box;
           background: var(--ha-card-background, var(--card-background-color, #1c1c1e));
@@ -2967,13 +2825,15 @@ class TemperatureRangeCard extends HTMLElement {
     `;
 
     const sel = this.shadowRoot.getElementById("roomSelect");
-    if (sel) {
-      sel.addEventListener("change", (e) => this._onSelectChange(e));
-    }
+    if (sel) sel.addEventListener("change", (e) => this._onSelectChange(e));
     const pSel = this.shadowRoot.getElementById("periodSelect");
-    if (pSel) {
-      pSel.addEventListener("change", (e) => this._onPeriodChange(e));
-    }
+    if (pSel) pSel.addEventListener("change", (e) => this._onPeriodChange(e));
+    // Un rendu différé (menu ouvert pendant une mise à jour) est exécuté dès que le menu perd le focus
+    [sel, pSel].forEach(el => {
+      if (el) el.addEventListener("blur", () => {
+        if (this._pendingRender) setTimeout(() => this._requestRender(), 0);
+      });
+    });
 
     this._isCardRendered = true;
   }
@@ -2983,7 +2843,7 @@ if (!customElements.get("temperature-range-card")) {
   customElements.define("temperature-range-card", TemperatureRangeCard);
 }
 window.customCards = window.customCards || [];
-window.customCards.push({
+if (!window.customCards.some(c => c.type === "temperature-range-card")) window.customCards.push({
   type: "temperature-range-card",
   name: "Temperature History & Range Card",
   description: "Visualisez et comparez l'historique thermique (amplitudes Min-Max) de vos capteurs sur plusieurs jours, semaines ou mois avec l'élégance Apple Weather.",
